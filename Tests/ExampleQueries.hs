@@ -72,6 +72,13 @@ test_union =
       expectedStream = single_column_stream expectedColumn [ VBool True, VBool False ]
   in assertQueryResults nullEnvironment query expectedStream
 
+test_subquery :: Assertion
+test_subquery =
+  let query = "select true from (select false);"
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -81,5 +88,6 @@ exampleQueriesTests =
     testCase "Case when(null)" test_case_when_null,
     testCase "Case when else" test_case_when_else,
     testCase "Case when when" test_case_when_when,
-    testCase "Union" test_union
+    testCase "Union" test_union,
+    testCase "Subquery" test_subquery
     ]

@@ -118,6 +118,21 @@ test_union =
     actualStream <- execute nullEnvironment statement
     assertEqual "Union" expectedStream actualStream
         
+test_subquery :: Assertion
+test_subquery =
+  let statement = SQuery $
+        SingleQuery {
+          queryProject = V.singleton $ ELiteral $ LBool True,
+          querySource = Just $ SingleQuery {
+            queryProject = V.singleton $ ELiteral $ LBool False,
+            querySource = Nothing
+            }
+          }
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "Subquery" expectedStream actualStream
 
 interpreterTests :: Test.Framework.Test
 interpreterTests =
@@ -128,5 +143,6 @@ interpreterTests =
     testCase "Case when(null)" test_case_when_null,
     testCase "Case when else" test_case_when_else,
     testCase "Case when when" test_case_when_when,
-    testCase "Union" test_union
+    testCase "Union" test_union,
+    testCase "Subquery" test_subquery
     ]
