@@ -13,23 +13,38 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.HUnit
 import Test.QuickCheck
 
+assert_tokenizes :: T.Text -> [ Token ] -> Assertion
+assert_tokenizes statement expectedTokens = do
+  let actualTokens   = unsafeRunTokenLexer statement
+  assertEqual "" expectedTokens actualTokens
+
 test_booleanSelect :: Assertion
 test_booleanSelect = do
-  let statement      = "select true;"
-  let actualTokens   = unsafeRunTokenLexer statement
-  let expectedTokens = [ TkSelect, TkTrue, TkStatementEnd ]
-  assertEqual "Boolean select" expectedTokens actualTokens
+  assert_tokenizes "select true;" [ TkSelect, TkTrue, TkStatementEnd ]
 
 test_rename :: Assertion
 test_rename = do
-  let statement = "select true as example";
-  let actualTokens = unsafeRunTokenLexer statement
-  let expectedTokens = [ TkSelect, TkTrue, TkRename, TkIdentifier "example" ]
-  assertEqual "rename expression" expectedTokens actualTokens
+  assert_tokenizes "select true as example" [
+    TkSelect, TkTrue, TkRename, TkIdentifier "example"
+    ]
+
+test_case_when :: Assertion
+test_case_when = do
+  assert_tokenizes "select case when true then true end" [
+    TkSelect, TkCase, TkWhen, TkTrue, TkThen, TkTrue, TkEnd
+    ]
+
+test_case_when_else :: Assertion
+test_case_when_else = do
+  assert_tokenizes "select case when true then true else false end" [
+    TkSelect, TkCase, TkWhen, TkTrue, TkThen, TkTrue, TkElse, TkFalse, TkEnd
+    ]
 
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =
   testGroup "Tokenizer" [
     testCase "Boolean select" test_booleanSelect,
-    testCase "Rename expression" test_rename
+    testCase "Rename expression" test_rename,
+    testCase "Case when" test_case_when,
+    testCase "Case when else" test_case_when_else
     ]

@@ -7,7 +7,8 @@ type ArrayOf a = Vector a
 type SetOf a = [ a ]
   
 data Value =
-    VBool Bool
+      VBool Bool
+    | VNull
     deriving (Eq, Show)
 
 data Type =

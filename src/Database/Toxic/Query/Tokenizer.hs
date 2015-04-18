@@ -15,6 +15,11 @@ data Token =
    | TkStatementEnd
    | TkRename
    | TkIdentifier T.Text
+   | TkCase
+   | TkWhen
+   | TkThen
+   | TkElse
+   | TkEnd
    deriving (Eq, Show)
 
 lexStatementEnd :: CharParser Token
@@ -22,11 +27,16 @@ lexStatementEnd = char ';' *> return TkStatementEnd
 
 lexKeyword :: CharParser Token
 lexKeyword =
-  let tryKeyword keyword token = string keyword *> spaces *> return token
+  let tryKeyword keyword token = try (string keyword *> spaces *> return token)
   in     tryKeyword "select" TkSelect
      <|> tryKeyword "true" TkTrue
      <|> tryKeyword "false" TkFalse
      <|> tryKeyword "as" TkRename
+     <|> tryKeyword "case" TkCase
+     <|> tryKeyword "when" TkWhen
+     <|> tryKeyword "then" TkThen
+     <|> tryKeyword "else" TkElse
+     <|> tryKeyword "end" TkEnd
 
 lexIdentifier :: CharParser Token
 lexIdentifier =
@@ -43,7 +53,7 @@ lexer :: CharParser [ Token ]
 lexer = many lexOneToken
 
 runTokenLexer :: T.Text -> Either ParseError [Token]
-runTokenLexer source = parse lexer "lex" $ T.unpack source
+runTokenLexer source = parse lexer "runTokenLexer" $ T.unpack source
 
 unsafeRunTokenLexer :: T.Text -> [ Token ]
 unsafeRunTokenLexer source = case runTokenLexer source of
