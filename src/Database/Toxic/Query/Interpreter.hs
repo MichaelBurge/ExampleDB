@@ -14,6 +14,12 @@ data Environment = Environment { }
 
 data BindingContext = BindingContext { }
 
+nullEnvironment :: Environment
+nullEnvironment = error "TODO: Implement nullEnvironment"
+
+nullContext :: BindingContext
+nullContext = error "TODO: Implement nullContext"
+
 literalType :: Literal -> Type
 literalType literal = case literal of
   LBool _ -> TBool
@@ -49,7 +55,7 @@ evaluateExpressions expressions context =
   Record $ V.map (evaluateOneExpression context) expressions
 
 resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
-resolveQueryBindings environment query = return []
+resolveQueryBindings environment query = return [nullContext]
 
 evaluateQuery :: Environment -> Query -> IO Stream
 evaluateQuery environment query =
