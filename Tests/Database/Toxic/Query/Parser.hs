@@ -46,11 +46,50 @@ test_case_when =
       expectedStatement  = singleton_statement expectedExpression
   in assert_tokens_parse tokens expectedStatement
 
+test_case_when_else :: Assertion
+test_case_when_else =
+  let tokens =
+        [
+          TkSelect,
+            TkCase,
+              TkWhen, TkTrue, TkThen, TkTrue,
+              TkElse, TkFalse,
+            TkEnd,
+            TkStatementEnd
+        ]
+      expectedCondition  = (ELiteral $ LBool True, ELiteral $ LBool True)
+      expectedOtherwise  = Just $ ELiteral $ LBool False
+      expectedExpression = ECase (V.singleton expectedCondition) expectedOtherwise
+      expectedStatement  = singleton_statement expectedExpression
+  in assert_tokens_parse tokens expectedStatement
+
+test_case_when_when_else :: Assertion
+test_case_when_when_else =
+  let tokens =
+        [
+          TkSelect,
+            TkCase,
+              TkWhen, TkTrue, TkThen, TkTrue,
+              TkWhen, TkFalse, TkThen, TkTrue,
+              TkElse, TkFalse,
+            TkEnd,
+            TkStatementEnd
+        ]
+      expectedCondition1 = (ELiteral $ LBool True, ELiteral $ LBool True)
+      expectedCondition2 = (ELiteral $ LBool False, ELiteral $ LBool True)
+      expectedOtherwise  = Just $ ELiteral $ LBool False
+      expectedConditions = V.fromList [ expectedCondition1, expectedCondition2 ]
+      expectedExpression = ECase expectedConditions expectedOtherwise
+      expectedStatement  = singleton_statement expectedExpression
+  in assert_tokens_parse tokens expectedStatement
+
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
     testCase "Boolean select" test_booleanSelect,
     testCase "Rename" test_rename,
-    testCase "Case When" test_case_when
+    testCase "Case When" test_case_when,
+    testCase "Case when else" test_case_when_else,
+    testCase "Case when when else" test_case_when_when_else
     ]
   
