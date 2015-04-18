@@ -17,8 +17,7 @@ import Test.QuickCheck
 test_booleanSelect :: Assertion
 test_booleanSelect = do
   let expression = ELiteral $ LBool True
-  let query = Query { queryProject = V.singleton expression }
-  let statement = SQuery query
+  let statement = singleton_statement expression
   actualStream <- execute nullEnvironment statement
   let expectedColumn = Column {
         columnName = "literal",
@@ -30,8 +29,7 @@ test_booleanSelect = do
 test_rename :: Assertion
 test_rename = do
   let expression = ERename (ELiteral $ LBool True) "example"
-  let query = Query { queryProject = V.singleton expression }
-  let statement = SQuery query
+  let statement  = singleton_statement expression
   actualStream <- execute nullEnvironment statement
   let expectedColumn = Column {
         columnName = "example",

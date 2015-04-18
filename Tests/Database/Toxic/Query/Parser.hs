@@ -83,6 +83,25 @@ test_case_when_when_else =
       expectedStatement  = singleton_statement expectedExpression
   in assert_tokens_parse tokens expectedStatement
 
+test_union :: Assertion
+test_union =
+  let tokens =
+        [
+          TkSelect, TkTrue,
+          TkUnion,
+          TkSelect, TkFalse,
+          TkStatementEnd
+        ]
+      expectedStatement = SQuery $
+        CompositeQuery {
+           queryCombineOperation = QueryCombineUnion,
+           queryConstituentQueries = V.fromList [
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True  },
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False }
+           ]
+         }
+  in assert_tokens_parse tokens expectedStatement
+
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -90,6 +109,7 @@ parserTests =
     testCase "Rename" test_rename,
     testCase "Case When" test_case_when,
     testCase "Case when else" test_case_when_else,
-    testCase "Case when when else" test_case_when_when_else
+    testCase "Case when when else" test_case_when_when_else,
+    testCase "Union" test_union
     ]
   

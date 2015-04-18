@@ -16,8 +16,15 @@ data Expression =
   | ECase (ArrayOf (Condition, Expression)) (Maybe Expression)
   deriving (Eq, Show)
 
-data Query = Query {
+data QueryCombineOperation =
+  QueryCombineUnion
+  deriving (Eq, Show)
+
+data Query = SingleQuery {
   queryProject :: ArrayOf Expression
+  } | CompositeQuery {
+   queryCombineOperation   :: QueryCombineOperation,
+   queryConstituentQueries :: ArrayOf Query
   } deriving (Eq, Show)
 
 data Statement =
@@ -26,7 +33,7 @@ data Statement =
 
 
 singleton_statement :: Expression -> Statement
-singleton_statement expression = SQuery $ Query {
+singleton_statement expression = SQuery $ SingleQuery {
   queryProject = V.singleton expression
   }
 

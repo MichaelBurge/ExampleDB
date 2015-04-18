@@ -75,14 +75,14 @@ select_item =
 select_clause :: TokenParser (ArrayOf Expression)
 select_clause = V.fromList <$> many select_item
   
-query :: TokenParser Query
-query = matchToken TkSelect *> do
+single_query :: TokenParser Query
+single_query = matchToken TkSelect *> do
   expressions <- select_clause
-  return $ Query { queryProject = expressions }
+  return $ SingleQuery { queryProject = expressions }
 
 statement :: TokenParser Statement
 statement = do
-  q <- query
+  q <- single_query
   matchToken TkStatementEnd
   return $ SQuery q
 
