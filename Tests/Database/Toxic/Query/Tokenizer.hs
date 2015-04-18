@@ -20,8 +20,16 @@ test_booleanSelect = do
   let expectedTokens = [ TkSelect, TkTrue, TkStatementEnd ]
   assertEqual "Boolean select" expectedTokens actualTokens
 
+test_rename :: Assertion
+test_rename = do
+  let statement = "select true as example";
+  let actualTokens = unsafeRunTokenLexer statement
+  let expectedTokens = [ TkSelect, TkTrue, TkRename, TkIdentifier "example" ]
+  assertEqual "rename expression" expectedTokens actualTokens
+
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =
   testGroup "Tokenizer" [
-    testCase "Boolean select" test_booleanSelect
+    testCase "Boolean select" test_booleanSelect,
+    testCase "Rename expression" test_rename
     ]

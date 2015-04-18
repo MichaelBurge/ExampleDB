@@ -1,6 +1,6 @@
 module Database.Toxic.Query.Tokenizer where
 
-import Control.Applicative ((*>))
+import Control.Applicative ((<$>), (*>), (<*>))
 import qualified Data.Text as T
 import Text.Parsec
 
@@ -13,6 +13,8 @@ data Token =
    | TkTrue
    | TkFalse
    | TkStatementEnd
+   | TkRename
+   | TkIdentifier T.Text
    deriving (Eq, Show)
 
 lexStatementEnd :: CharParser Token
@@ -24,11 +26,18 @@ lexKeyword =
   in     tryKeyword "select" TkSelect
      <|> tryKeyword "true" TkTrue
      <|> tryKeyword "false" TkFalse
+     <|> tryKeyword "as" TkRename
+
+lexIdentifier :: CharParser Token
+lexIdentifier =
+  let chars = (:) <$> letter <*> many alphaNum
+  in TkIdentifier <$> T.pack <$> chars
 
 lexOneToken :: CharParser Token
 lexOneToken =
         lexStatementEnd
     <|> lexKeyword
+    <|> lexIdentifier
 
 lexer :: CharParser [ Token ]
 lexer = many lexOneToken
