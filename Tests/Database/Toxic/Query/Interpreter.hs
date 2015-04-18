@@ -97,6 +97,26 @@ test_case_when_when =
     actualStream <- execute nullEnvironment statement
     assertEqual "Case when when else" expectedStream actualStream
 
+test_union :: Assertion
+test_union =
+  let statement = SQuery $
+        CompositeQuery {
+           queryCombineOperation = QueryCombineUnion,
+           queryConstituentQueries = V.fromList [
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True  },
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False }
+           ]
+         }
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = single_column_stream expectedColumn [
+        VBool True,
+        VBool False
+        ]
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "Union" expectedStream actualStream
+        
+
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
@@ -105,5 +125,6 @@ interpreterTests =
     testCase "Case when(value)" test_case_when_value,
     testCase "Case when(null)" test_case_when_null,
     testCase "Case when else" test_case_when_else,
-    testCase "Case when when" test_case_when_when
+    testCase "Case when when" test_case_when_when,
+    testCase "Union" test_union
     ]

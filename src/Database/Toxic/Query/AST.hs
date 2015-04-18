@@ -42,3 +42,9 @@ singleton_stream column value =
   let header = V.singleton column
       records = [ Record $ V.singleton value ]
   in Stream { streamHeader = header, streamRecords = records }
+
+single_column_stream :: Column -> [ Value ] -> Stream
+single_column_stream column values =
+  let header = V.singleton column
+      records = [ Record $ V.fromList values ]
+  in Stream { streamHeader = header, streamRecords = records }
