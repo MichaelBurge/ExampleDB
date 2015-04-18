@@ -76,10 +76,13 @@ select_item =
 select_clause :: TokenParser (ArrayOf Expression)
 select_clause = V.fromList <$> many select_item
 
+subquery :: TokenParser Query
+subquery = matchToken TkOpen *> query <* matchToken TkClose
+
 from_clause :: TokenParser Query
-from_clause =
-  let subquery = matchToken TkOpen *> query <* matchToken TkClose
-  in matchToken TkFrom *> try subquery
+from_clause = matchToken TkFrom *> (
+  try product_query <|> try subquery
+  )
 
 single_query :: TokenParser Query
 single_query = matchToken TkSelect *> do
@@ -95,6 +98,15 @@ composite_query =
     composite <- one_or_more
     when (V.length composite == 1) $ fail "A single composite query is just a single query"
     return $ CompositeQuery QueryCombineUnion composite
+
+product_query :: TokenParser Query
+product_query = 
+  let one_or_more = V.fromList <$>
+                    sepBy1 subquery (matchToken TkSequence)
+  in do
+    subqueries <- one_or_more
+    when (V.length subqueries == 1) $ fail "A single product query is just a single query"
+    return $ ProductQuery { queryFactors = subqueries }
 
 query :: TokenParser Query
 query = try composite_query <|> single_query

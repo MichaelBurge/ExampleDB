@@ -125,6 +125,34 @@ test_subquery =
             }
           }
   in assert_tokens_parse tokens expectedStatement
+
+test_cross_join :: Assertion
+test_cross_join =
+  let tokens =
+        [
+          TkSelect, TkTrue, TkFrom,
+          TkOpen, TkSelect, TkTrue, TkClose, TkSequence,
+          TkOpen, TkSelect, TkFalse, TkClose,
+          TkStatementEnd
+        ]
+      expectedStatement = SQuery $
+        SingleQuery {
+          queryProject = V.singleton $ ELiteral $ LBool True,
+          querySource = Just $ ProductQuery {
+            queryFactors = V.fromList [
+               SingleQuery {
+                  queryProject = V.singleton $ ELiteral $ LBool True,
+                  querySource = Nothing
+                  },
+               SingleQuery {
+                 queryProject = V.singleton $ ELiteral $ LBool False,
+                 querySource = Nothing
+                 }
+               ]
+            }
+          }
+  in assert_tokens_parse tokens expectedStatement
+     
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -134,6 +162,7 @@ parserTests =
     testCase "Case when else" test_case_when_else,
     testCase "Case when when else" test_case_when_when_else,
     testCase "Union" test_union,
-    testCase "Subquery" test_subquery
+    testCase "Subquery" test_subquery,
+    testCase "Cross Join" test_cross_join
     ]
   

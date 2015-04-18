@@ -26,6 +26,8 @@ data Query = SingleQuery {
   } | CompositeQuery {
    queryCombineOperation   :: QueryCombineOperation,
    queryConstituentQueries :: ArrayOf Query
+  } | ProductQuery {
+  queryFactors :: ArrayOf Query
   }
   deriving (Eq, Show)
 data Statement =
