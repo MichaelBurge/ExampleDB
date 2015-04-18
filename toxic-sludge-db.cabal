@@ -33,7 +33,7 @@ library
   default-language:    Haskell2010
 
 test-suite toxic-sludge-tests
-  ghc-options: -O2 -fprof-auto
+  ghc-options: -O2 -fprof-auto -fwarn-incomplete-patterns
   hs-source-dirs: src, .
   type: exitcode-stdio-1.0
   build-depends:

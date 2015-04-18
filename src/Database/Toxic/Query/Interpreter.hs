@@ -27,10 +27,12 @@ literalType literal = case literal of
 expressionType :: Expression -> Type
 expressionType expression = case expression of
   ELiteral x -> literalType x
+  ERename x _ -> expressionType x
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
   ELiteral _ -> "literal"
+  ERename _ x -> x
 
 expressionColumn :: Expression -> Column
 expressionColumn expression = Column {
@@ -49,6 +51,7 @@ evaluateLiteral literal = case literal of
 evaluateOneExpression :: BindingContext -> Expression -> Value
 evaluateOneExpression context expression = case expression of
   ELiteral literal -> evaluateLiteral literal
+  ERename x _ -> evaluateOneExpression context x
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
@@ -72,3 +75,9 @@ evaluateQuery environment query =
 execute :: Environment -> Statement -> IO Stream
 execute environment statement = case statement of
   SQuery query -> evaluateQuery environment query
+
+singleton_stream :: Column -> Value -> Stream
+singleton_stream column value =
+  let header = V.singleton column
+      records = [ Record $ V.singleton value ]
+  in Stream { streamHeader = header, streamRecords = records }

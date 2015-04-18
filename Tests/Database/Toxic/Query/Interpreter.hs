@@ -20,18 +20,29 @@ test_booleanSelect = do
   let query = Query { queryProject = V.singleton expression }
   let statement = SQuery query
   actualStream <- execute nullEnvironment statement
-  let expectedHeader = V.singleton $ Column {
+  let expectedColumn = Column {
         columnName = "literal",
         columnType = TBool
         }
-  let expectedStream = Stream {
-        streamHeader = expectedHeader,
-        streamRecords = [ Record $ V.singleton $ VBool True ]
-        }
+  let expectedStream = singleton_stream expectedColumn $ VBool True
   assertEqual "Boolean select" expectedStream actualStream
+
+test_rename :: Assertion
+test_rename = do
+  let expression = ERename (ELiteral $ LBool True) "example"
+  let query = Query { queryProject = V.singleton expression }
+  let statement = SQuery query
+  actualStream <- execute nullEnvironment statement
+  let expectedColumn = Column {
+        columnName = "example",
+        columnType = TBool
+        }
+  let expectedStream = singleton_stream expectedColumn $ VBool True
+  assertEqual "Rename" expectedStream actualStream
 
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
-    testCase "Boolean select" test_booleanSelect
+    testCase "Boolean select" test_booleanSelect,
+    testCase "Rename" test_rename
     ]
