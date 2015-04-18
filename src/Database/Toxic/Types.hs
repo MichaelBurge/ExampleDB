@@ -19,7 +19,7 @@ data Column = Column {
 
 data Record = Record (ArrayOf Value)
 data Stream = Stream {
-  streamHeader    :: ArrayOf Column,
+  streamHeader  :: ArrayOf Column,
   streamRecords :: SetOf Record
   }
 
