@@ -25,16 +25,20 @@ assertQueryResults environment query expectedStream = do
 test_booleanSelect :: Assertion
 test_booleanSelect = do
   let query = "select true;"
-  let expectedHeader = V.singleton $
-                       Column { columnName = "literal", columnType = TBool }
-  let expectedRecords = [ Record $ V.singleton $ VBool True ]
-  let expectedStream = Stream {
-        streamHeader = expectedHeader, streamRecords = expectedRecords
-        }
+  let expectedColumn =  Column { columnName = "literal", columnType = TBool }
+  let expectedStream = singleton_stream expectedColumn $ VBool True
   assertQueryResults nullEnvironment query expectedStream
 
+test_rename :: Assertion
+test_rename= do
+  let query = "select true as example;"
+  let expectedColumn = Column { columnName = "example", columnType = TBool }
+  let expectedStream = singleton_stream expectedColumn $ VBool True
+  assertQueryResults nullEnvironment query expectedStream
+  
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
-    testCase "Boolean select" test_booleanSelect
+    testCase "Boolean select" test_booleanSelect,
+    testCase "Rename" test_rename
     ]
