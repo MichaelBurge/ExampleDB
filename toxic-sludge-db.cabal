@@ -18,6 +18,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs: src
   exposed-modules:
+    Database.Toxic.Query.AST
     Database.Toxic.Types
   build-depends:
     array,
