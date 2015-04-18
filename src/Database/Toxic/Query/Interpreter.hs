@@ -69,8 +69,15 @@ evaluateExpressions expressions context =
   Record $ V.map (evaluateOneExpression context) expressions
 
 resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
-resolveQueryBindings environment query = return [nullContext]
-
+resolveQueryBindings environment query =
+  let mapResults innerQuery = do
+        innerStream <- evaluateQuery environment innerQuery
+        return $ map (const nullContext) $ streamRecords innerStream
+  in case query of
+    SingleQuery { querySource = Nothing } -> return [nullContext]
+    SingleQuery { querySource = Just innerQuery } -> mapResults innerQuery
+    CompositeQuery { } -> mapResults query
+    ProductQuery { } -> mapResults query
 evaluateSingleQuery :: Environment -> Query -> IO Stream
 evaluateSingleQuery environment query@(SingleQuery _ _) =
   let streamHeader     = queryColumns query
@@ -89,10 +96,23 @@ evaluateUnionQuery :: Environment -> ArrayOf Query -> IO Stream
 evaluateUnionQuery environment queries =
   let firstQuery = V.head queries
       header     = queryColumns firstQuery
-      allStreams = V.mapM (\x -> evaluateQuery environment x) queries
-      combinedRecords = concat <$> V.toList <$> V.map (streamRecords) <$> allStreams
+      combinedRecords = concatMapM (\x -> streamRecords <$> evaluateQuery environment x) (V.toList queries)
   in do
     records <- combinedRecords
+    return $ Stream {
+      streamHeader = header,
+      streamRecords = records
+    }
+
+concatMapM f l = fmap concat (mapM f l)
+
+evaluateProductQuery :: Environment -> ArrayOf Query -> IO Stream
+evaluateProductQuery environment queries =
+  let header = V.empty
+      evaluateOneStream query = streamRecords <$> evaluateQuery environment query :: IO (SetOf Record)
+      productRecords = map (const $ Record V.empty) <$> (sequence <$> (mapM evaluateOneStream $ V.toList queries)) :: IO [Record]
+  in do
+    records <- productRecords
     return $ Stream {
       streamHeader = header,
       streamRecords = records
@@ -104,7 +124,9 @@ evaluateQuery environment query =
     SingleQuery _ _ -> evaluateSingleQuery environment query
     CompositeQuery QueryCombineUnion queries ->
       evaluateUnionQuery environment queries
-      
+    ProductQuery queryFactors ->
+      evaluateProductQuery environment queryFactors
+
 execute :: Environment -> Statement -> IO Stream
 execute environment statement = case statement of
   SQuery query -> evaluateQuery environment query

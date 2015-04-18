@@ -158,6 +158,51 @@ test_cross_join =
     actualStream <- execute nullEnvironment statement
     assertEqual "Cross Join" expectedStream actualStream
 
+test_subquery_multiple_rows :: Assertion
+test_subquery_multiple_rows =
+  let falseQuery = SingleQuery {
+        queryProject = V.singleton $ ELiteral $ LBool False,
+        querySource = Nothing
+        }
+      unionQuery = CompositeQuery {
+        queryCombineOperation = QueryCombineUnion,
+        queryConstituentQueries = V.fromList [ falseQuery, falseQuery ]
+        }
+      statement = SQuery $ SingleQuery {
+        queryProject = V.singleton $ ELiteral $ LBool True,
+        querySource = Just unionQuery
+        }
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = single_column_stream expectedColumn $ replicate 2 $ VBool True
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "" expectedStream actualStream
+
+test_cross_join_multiple_rows :: Assertion
+test_cross_join_multiple_rows =
+  let falseQuery = SingleQuery {
+        queryProject = V.singleton $ ELiteral $ LBool False,
+        querySource = Nothing
+        }
+      unionQuery = CompositeQuery {
+        queryCombineOperation = QueryCombineUnion,
+        queryConstituentQueries = V.fromList [ falseQuery, falseQuery ]
+        }
+      productQuery = ProductQuery {
+        queryFactors = V.fromList [ unionQuery, unionQuery, unionQuery ]
+        }
+      finalQuery = SingleQuery {
+        queryProject = V.singleton $ ELiteral $ LBool True,
+        querySource = Just productQuery
+        }
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = single_column_stream expectedColumn $ replicate 8 $ VBool True
+      statement = SQuery finalQuery
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "" expectedStream actualStream
+
+    
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
@@ -169,5 +214,6 @@ interpreterTests =
     testCase "Case when when" test_case_when_when,
     testCase "Union" test_union,
     testCase "Subquery" test_subquery,
+    testCase "Subquery(Multiple rows" test_subquery_multiple_rows,
     testCase "Cross Join" test_cross_join
     ]
