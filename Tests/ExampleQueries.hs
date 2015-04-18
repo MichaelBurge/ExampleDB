@@ -79,6 +79,13 @@ test_subquery =
       expectedStream = singleton_stream expectedColumn $ VBool True
   in assertQueryResults nullEnvironment query expectedStream
 
+test_cross_join :: Assertion
+test_cross_join =
+  let query = "select true from (select false), (select true);"
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -89,5 +96,6 @@ exampleQueriesTests =
     testCase "Case when else" test_case_when_else,
     testCase "Case when when" test_case_when_when,
     testCase "Union" test_union,
-    testCase "Subquery" test_subquery
+    testCase "Subquery" test_subquery,
+    testCase "Cross Join" test_cross_join
     ]
