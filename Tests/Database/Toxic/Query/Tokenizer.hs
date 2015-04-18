@@ -1,6 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Tests.Database.Toxic.Query.Tokenizer (tokenizerTests) where
 
 import Prelude hiding (lex)
+import qualified Data.Text as T
 
 import Database.Toxic.Query.Tokenizer
 
@@ -13,11 +16,9 @@ import Test.QuickCheck
 test_booleanSelect :: Assertion
 test_booleanSelect = do
   let statement      = "select true;"
-  let parseResult    = lex statement
+  let actualTokens   = unsafeRunTokenLexer statement
   let expectedTokens = [ TkSelect, TkTrue, TkStatementEnd ]
-  case parseResult of
-    Left parseError -> error $ show parseError
-    Right actualTokens -> assertEqual "Boolean select" expectedTokens actualTokens
+  assertEqual "Boolean select" expectedTokens actualTokens
 
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =

@@ -41,4 +41,9 @@ statement = do
 runTokenParser :: [Token] -> Either ParseError Statement
 runTokenParser tokens = parse statement "runTokenParser" tokens
 
+unsafeRunTokenParser :: [Token] -> Statement
+unsafeRunTokenParser tokens = case runTokenParser tokens of
+  Left parseError -> error $ show parseError
+  Right statement -> statement
+
 ignorePosition pos _ _ = pos

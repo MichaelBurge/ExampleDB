@@ -1,6 +1,7 @@
 module Database.Toxic.Query.Tokenizer where
 
 import Control.Applicative ((*>))
+import qualified Data.Text as T
 import Text.Parsec
 
 type CharParser a = Parsec String () a
@@ -32,5 +33,10 @@ lexOneToken =
 lexer :: CharParser [ Token ]
 lexer = many lexOneToken
 
-lex :: String -> Either ParseError [Token]
-lex source = parse lexer "lex" source
+runTokenLexer :: T.Text -> Either ParseError [Token]
+runTokenLexer source = parse lexer "lex" $ T.unpack source
+
+unsafeRunTokenLexer :: T.Text -> [ Token ]
+unsafeRunTokenLexer source = case runTokenLexer source of
+  Left parseError -> error $ show parseError
+  Right tokens -> tokens
