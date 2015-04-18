@@ -46,5 +46,5 @@ singleton_stream column value =
 single_column_stream :: Column -> [ Value ] -> Stream
 single_column_stream column values =
   let header = V.singleton column
-      records = [ Record $ V.fromList values ]
+      records = map (Record . V.singleton) values
   in Stream { streamHeader = header, streamRecords = records }

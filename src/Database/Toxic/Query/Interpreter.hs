@@ -71,8 +71,8 @@ evaluateExpressions expressions context =
 resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
 resolveQueryBindings environment query = return [nullContext]
 
-evaluateQuery :: Environment -> Query -> IO Stream
-evaluateQuery environment query =
+evaluateSingleQuery :: Environment -> Query -> IO Stream
+evaluateSingleQuery environment query@(SingleQuery _) =
   let streamHeader     = queryColumns query
       queryExpressions = queryProject query :: ArrayOf Expression
   in do
@@ -82,7 +82,30 @@ evaluateQuery environment query =
       streamHeader = streamHeader,
       streamRecords = streamRecords
       }
-     
+    
+evaluateSingleQuery _ query = error $ "evaluateSingleQuery called on something other than a single query" ++ show query
+
+evaluateUnionQuery :: Environment -> ArrayOf Query -> IO Stream
+evaluateUnionQuery environment queries =
+  let firstQuery = V.head queries
+      header     = queryColumns firstQuery
+      allStreams = V.mapM (\x -> evaluateQuery environment x) queries
+      combinedRecords = concat <$> V.toList <$> V.map (streamRecords) <$> allStreams
+  in do
+    records <- combinedRecords
+    return $ Stream {
+      streamHeader = header,
+      streamRecords = records
+    }
+
+evaluateQuery :: Environment -> Query -> IO Stream
+evaluateQuery environment query =
+  case query of
+    SingleQuery _ -> evaluateSingleQuery environment query
+    CompositeQuery QueryCombineUnion queries ->
+      evaluateUnionQuery environment queries
+      
 execute :: Environment -> Statement -> IO Stream
 execute environment statement = case statement of
   SQuery query -> evaluateQuery environment query
+
