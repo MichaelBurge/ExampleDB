@@ -8,6 +8,7 @@ import Control.Applicative ((<$>), (*>), (<*))
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Text.Parsec
+import Text.Parsec.Combinator
 
 type TokenParser a = Parsec [Token] () a
 
@@ -28,6 +29,25 @@ literal =
       (matchToken TkTrue *> return (LBool True))
   <|> (matchToken TkFalse *> return (LBool False))
 
+case_condition :: TokenParser (Condition, Expression)
+case_condition = do
+  matchToken TkWhen
+  condition <- expression
+  matchToken TkThen
+  result <- expression
+  return (condition, result)
+
+case_else :: TokenParser Expression
+case_else = matchToken TkElse *> expression
+
+case_when_expression :: TokenParser Expression
+case_when_expression = do
+  matchToken TkCase
+  conditions <- many $ case_condition
+  else_case <- optionMaybe case_else
+  matchToken TkEnd
+  return $ ECase (V.fromList conditions) else_case
+
 rename_expression :: TokenParser Expression
 rename_expression = do
   original <- expression
@@ -36,7 +56,8 @@ rename_expression = do
 
 expression :: TokenParser Expression
 expression =
-      ELiteral <$> literal
+        try(ELiteral <$> literal)
+    <|> case_when_expression
 
 rename_clause :: TokenParser T.Text
 rename_clause = do
@@ -44,6 +65,7 @@ rename_clause = do
   new_name_token <- identifier
   case new_name_token of
     TkIdentifier new_name -> return new_name
+    _ -> error $ "rename_clause: Unexpected value - " ++ show new_name_token
 
 select_item :: TokenParser Expression
 select_item =
@@ -73,3 +95,8 @@ unsafeRunTokenParser tokens = case runTokenParser tokens of
   Right statement -> statement
 
 ignorePosition pos _ _ = pos
+
+singleton_statement :: Expression -> Statement
+singleton_statement expression = SQuery $ Query {
+  queryProject = V.singleton expression
+  }

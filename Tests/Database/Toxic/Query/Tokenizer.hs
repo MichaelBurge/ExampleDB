@@ -40,11 +40,21 @@ test_case_when_else = do
     TkSelect, TkCase, TkWhen, TkTrue, TkThen, TkTrue, TkElse, TkFalse, TkEnd
     ]
 
+test_case_when_when_else :: Assertion
+test_case_when_when_else =
+  assert_tokenizes "select case when false then true when true then false else false end" [
+    TkSelect, TkCase, TkWhen, TkFalse, TkThen, TkTrue,
+                      TkWhen, TkTrue,  TkThen, TkFalse,
+                      TkElse, TkFalse,
+               TkEnd
+    ]
+
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =
   testGroup "Tokenizer" [
     testCase "Boolean select" test_booleanSelect,
     testCase "Rename expression" test_rename,
     testCase "Case when" test_case_when,
-    testCase "Case when else" test_case_when_else
+    testCase "Case when else" test_case_when_else,
+    testCase "Case when when else" test_case_when_when_else
     ]

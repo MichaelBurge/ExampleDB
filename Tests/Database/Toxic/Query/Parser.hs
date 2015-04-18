@@ -15,31 +15,42 @@ import Test.QuickCheck
 
 import qualified Data.Vector as V
 
+assert_tokens_parse :: [ Token ] -> Statement -> Assertion
+assert_tokens_parse tokens expectedStatement = do
+  let actualStatement   = unsafeRunTokenParser tokens  
+  assertEqual "" expectedStatement actualStatement
+  
 test_booleanSelect :: Assertion
-test_booleanSelect = do
+test_booleanSelect =
   let tokens            = [ TkSelect, TkTrue, TkStatementEnd ]
-  let actualStatement   = unsafeRunTokenParser tokens
-  let literalTrue       = ELiteral $ LBool True
-  let expectedStatement = SQuery $ Query {
-        queryProject = V.singleton literalTrue
-        }
-  assertEqual "Boolean select" expectedStatement actualStatement
+      literalTrue       = ELiteral $ LBool True
+      expectedStatement = singleton_statement literalTrue
+  in assert_tokens_parse tokens expectedStatement
 
 test_rename :: Assertion
-test_rename = do
+test_rename =
   let tokens =
         [ TkSelect, TkTrue, TkRename, TkIdentifier "example", TkStatementEnd ]
-  let actualStatement    = unsafeRunTokenParser tokens
-  let expectedExpression = ERename (ELiteral $ LBool True) "example"
-  let expectedStatement = SQuery $ Query {
-        queryProject = V.singleton expectedExpression
-        }
-  assertEqual "Rename" expectedStatement actualStatement
+      expectedExpression = ERename (ELiteral $ LBool True) "example"
+      expectedStatement = singleton_statement expectedExpression
+  in assert_tokens_parse tokens expectedStatement
+
+test_case_when :: Assertion
+test_case_when =
+  let tokens =
+        [ TkSelect, TkCase, TkWhen, TkTrue, TkThen, TkFalse, TkEnd, TkStatementEnd ]
+      expectedCondition  = ELiteral $ LBool True
+      expectedResult     = ELiteral $ LBool False
+      expectedCase       = (expectedCondition, expectedResult)
+      expectedExpression = ECase (V.singleton expectedCase) Nothing
+      expectedStatement  = singleton_statement expectedExpression
+  in assert_tokens_parse tokens expectedStatement
 
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
     testCase "Boolean select" test_booleanSelect,
-    testCase "Rename" test_rename
+    testCase "Rename" test_rename,
+    testCase "Case When" test_case_when
     ]
   
