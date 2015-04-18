@@ -33,4 +33,4 @@ lexer :: CharParser [ Token ]
 lexer = many lexOneToken
 
 lex :: String -> Either ParseError [Token]
-lex source = parse lexer "" source
+lex source = parse lexer "lex" source
