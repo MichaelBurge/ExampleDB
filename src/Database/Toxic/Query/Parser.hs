@@ -5,6 +5,7 @@ import Database.Toxic.Query.AST
 import Database.Toxic.Query.Tokenizer
 
 import Control.Applicative ((<$>), (*>), (<*))
+import Control.Monad
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Text.Parsec
@@ -80,9 +81,21 @@ single_query = matchToken TkSelect *> do
   expressions <- select_clause
   return $ SingleQuery { queryProject = expressions }
 
+composite_query :: TokenParser Query
+composite_query =
+  let one_or_more = V.fromList <$>
+                    sepBy1 single_query (matchToken TkUnion)
+  in do
+    composite <- one_or_more
+    when (V.length composite == 1) $ fail "A single composite query is just a single query"
+    return $ CompositeQuery QueryCombineUnion composite
+
+query :: TokenParser Query
+query = try composite_query <|> single_query
+
 statement :: TokenParser Statement
 statement = do
-  q <- single_query
+  q <- query
   matchToken TkStatementEnd
   return $ SQuery q
 
