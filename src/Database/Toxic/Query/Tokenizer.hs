@@ -27,6 +27,7 @@ data Token =
    | TkStatementEnd -- ;
    | TkOpen         -- (
    | TkClose        -- )
+   | TkSequence     -- ,
    deriving (Eq, Show)
 
 lexStatementEnd :: CharParser Token
@@ -38,6 +39,7 @@ lexSymbol =
   in     trySymbol ';' TkStatementEnd
      <|> trySymbol '(' TkOpen
      <|> trySymbol ')' TkClose
+     <|> trySymbol ',' TkSequence
 
 lexKeyword :: CharParser Token
 lexKeyword =

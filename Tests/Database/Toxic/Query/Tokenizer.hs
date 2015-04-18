@@ -61,6 +61,15 @@ test_subquery =
     TkSelect, TkTrue, TkFrom, TkOpen, TkSelect, TkFalse, TkClose
     ]
 
+test_cross_join :: Assertion
+test_cross_join =
+  assert_tokenizes "select true from ( select false), ( select true );" [
+    TkSelect, TkTrue, TkFrom,
+      TkOpen, TkSelect, TkFalse, TkClose, TkSequence,
+      TkOpen, TkSelect, TkTrue, TkClose,
+    TkStatementEnd
+    ]
+
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =
   testGroup "Tokenizer" [
@@ -70,5 +79,6 @@ tokenizerTests =
     testCase "Case when else" test_case_when_else,
     testCase "Case when when else" test_case_when_when_else,
     testCase "Union" test_union,
-    testCase "Subquery" test_subquery
+    testCase "Subquery" test_subquery,
+    testCase "Cross Join" test_cross_join
     ]
