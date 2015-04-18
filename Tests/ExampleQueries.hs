@@ -36,10 +36,44 @@ test_rename= do
   let expectedColumn = Column { columnName = "example", columnType = TBool }
   let expectedStream = singleton_stream expectedColumn $ VBool True
   assertQueryResults nullEnvironment query expectedStream
-  
+
+test_case_when_value :: Assertion
+test_case_when_value =
+  let query = "select case when true then false end;"
+      expectedColumn = Column { columnName = "case", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool False
+  in assertQueryResults nullEnvironment query expectedStream
+
+test_case_when_null :: Assertion
+test_case_when_null =
+  let query = "select case when false then false end;"
+      expectedColumn = Column { columnName = "case", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VNull
+  in assertQueryResults nullEnvironment query expectedStream
+
+test_case_when_else :: Assertion
+test_case_when_else =
+  let query = "select case when false then false else true end;"
+      expectedColumn = Column { columnName = "case", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in assertQueryResults nullEnvironment query expectedStream
+
+test_case_when_when :: Assertion
+test_case_when_when =
+  let query = "select case when false then false when true then true else false end;"
+      expectedColumn = Column { columnName = "case", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in assertQueryResults nullEnvironment query expectedStream
+
+
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
     testCase "Boolean select" test_booleanSelect,
-    testCase "Rename" test_rename
+    testCase "Rename" test_rename,
+    testCase "Case when(value)" test_case_when_value,
+    testCase "Case when(null)" test_case_when_null,
+    testCase "Case when else" test_case_when_else,
+    testCase "Case when when" test_case_when_when
     ]
