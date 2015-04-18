@@ -28,11 +28,13 @@ expressionType :: Expression -> Type
 expressionType expression = case expression of
   ELiteral x -> literalType x
   ERename x _ -> expressionType x
+  ECase vs _ -> expressionType $ snd $ V.head vs
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
   ELiteral _ -> "literal"
   ERename _ x -> x
+  ECase _ _ -> "case"
 
 expressionColumn :: Expression -> Column
 expressionColumn expression = Column {
@@ -52,6 +54,15 @@ evaluateOneExpression :: BindingContext -> Expression -> Value
 evaluateOneExpression context expression = case expression of
   ELiteral literal -> evaluateLiteral literal
   ERename x _ -> evaluateOneExpression context x
+  ECase conditions otherwise ->
+    let isTrue (condition, result) =
+          evaluateOneExpression context condition == VBool True
+        firstMatchingCondition = V.find isTrue conditions
+    in case firstMatchingCondition of
+      Just (_, result) -> evaluateOneExpression context result
+      Nothing -> case otherwise of
+        Just x -> evaluateOneExpression context x
+        Nothing -> VNull
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
@@ -75,9 +86,3 @@ evaluateQuery environment query =
 execute :: Environment -> Statement -> IO Stream
 execute environment statement = case statement of
   SQuery query -> evaluateQuery environment query
-
-singleton_stream :: Column -> Value -> Stream
-singleton_stream column value =
-  let header = V.singleton column
-      records = [ Record $ V.singleton value ]
-  in Stream { streamHeader = header, streamRecords = records }

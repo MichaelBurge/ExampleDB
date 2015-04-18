@@ -95,8 +95,3 @@ unsafeRunTokenParser tokens = case runTokenParser tokens of
   Right statement -> statement
 
 ignorePosition pos _ _ = pos
-
-singleton_statement :: Expression -> Statement
-singleton_statement expression = SQuery $ Query {
-  queryProject = V.singleton expression
-  }

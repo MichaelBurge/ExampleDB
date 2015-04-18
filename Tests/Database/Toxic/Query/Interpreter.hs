@@ -40,9 +40,72 @@ test_rename = do
   let expectedStream = singleton_stream expectedColumn $ VBool True
   assertEqual "Rename" expectedStream actualStream
 
+test_case_when_value :: Assertion
+test_case_when_value =
+  let condition  = (ELiteral $ LBool True, ELiteral $ LBool True)
+      expression = ECase (V.singleton condition) Nothing
+      statement  = singleton_statement expression
+      expectedColumn = Column {
+        columnName = "case",
+        columnType = TBool
+        }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "Case when(value)" expectedStream actualStream
+
+test_case_when_null :: Assertion
+test_case_when_null =
+  let condition  = (ELiteral $ LBool False, ELiteral $ LBool True)
+      expression = ECase (V.singleton condition) Nothing
+      statement  = singleton_statement expression
+      expectedColumn = Column {
+        columnName = "case",
+        columnType = TBool
+        }
+      expectedStream = singleton_stream expectedColumn $ VNull
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "Case when(null)" expectedStream actualStream
+
+test_case_when_else :: Assertion
+test_case_when_else =
+  let condition  = (ELiteral $ LBool False, ELiteral $ LBool True)
+      otherwise  = Just $ ELiteral $ LBool False
+      expression = ECase (V.singleton condition) otherwise
+      statement  = singleton_statement expression
+      expectedColumn = Column {
+        columnName = "case",
+        columnType = TBool
+        }
+      expectedStream = singleton_stream expectedColumn $ VBool False
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "Case when when" expectedStream actualStream
+
+test_case_when_when :: Assertion
+test_case_when_when =
+  let condition1 = (ELiteral $ LBool False, ELiteral $ LBool True)
+      condition2 =(ELiteral $ LBool True, ELiteral $ LBool False)
+      otherwise  = Just $ ELiteral $ LBool True
+      expression = ECase (V.fromList [condition1,condition2]) otherwise
+      statement  = singleton_statement expression
+      expectedColumn = Column {
+        columnName = "case",
+        columnType = TBool
+        }
+      expectedStream = singleton_stream expectedColumn $ VBool False
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "Case when when else" expectedStream actualStream
+
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
     testCase "Boolean select" test_booleanSelect,
-    testCase "Rename" test_rename
+    testCase "Rename" test_rename,
+    testCase "Case when(value)" test_case_when_value,
+    testCase "Case when(null)" test_case_when_null,
+    testCase "Case when else" test_case_when_else,
+    testCase "Case when when" test_case_when_when
     ]

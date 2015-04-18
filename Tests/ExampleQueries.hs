@@ -3,6 +3,7 @@
 module Tests.ExampleQueries (exampleQueriesTests) where
 
 import Database.Toxic.Types
+import Database.Toxic.Query.AST
 import Database.Toxic.Query.Interpreter
 import Database.Toxic.Query.Parser
 import Database.Toxic.Query.Tokenizer
