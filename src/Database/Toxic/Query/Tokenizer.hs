@@ -9,10 +9,10 @@ type CharParser a = Parsec String () a
 data SourcePosition = SourcePosition { line, column :: Int } deriving (Eq, Show)
 
 data Token =
+  -- Keywords
      TkSelect
    | TkTrue
    | TkFalse
-   | TkStatementEnd
    | TkRename
    | TkIdentifier T.Text
    | TkCase
@@ -21,10 +21,23 @@ data Token =
    | TkElse
    | TkEnd
    | TkUnion
+   | TkFrom
+
+  -- Symbols
+   | TkStatementEnd -- ;
+   | TkOpen         -- (
+   | TkClose        -- )
    deriving (Eq, Show)
 
 lexStatementEnd :: CharParser Token
 lexStatementEnd = char ';' *> return TkStatementEnd
+
+lexSymbol :: CharParser Token
+lexSymbol =
+  let trySymbol c token = try (char c *> spaces *> return token)
+  in     trySymbol ';' TkStatementEnd
+     <|> trySymbol '(' TkOpen
+     <|> trySymbol ')' TkClose
 
 lexKeyword :: CharParser Token
 lexKeyword =
@@ -39,6 +52,7 @@ lexKeyword =
      <|> tryKeyword "else" TkElse
      <|> tryKeyword "end" TkEnd
      <|> tryKeyword "union" TkUnion
+     <|> tryKeyword "from" TkFrom
 
 lexIdentifier :: CharParser Token
 lexIdentifier =
@@ -47,7 +61,7 @@ lexIdentifier =
 
 lexOneToken :: CharParser Token
 lexOneToken =
-        lexStatementEnd
+        lexSymbol
     <|> lexKeyword
     <|> lexIdentifier
 
