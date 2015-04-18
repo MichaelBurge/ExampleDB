@@ -49,6 +49,12 @@ test_case_when_when_else =
                TkEnd
     ]
 
+test_union :: Assertion
+test_union =
+  assert_tokenizes "select true union select false" [
+    TkSelect, TkTrue, TkUnion, TkSelect, TkFalse
+    ]
+
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =
   testGroup "Tokenizer" [
@@ -56,5 +62,6 @@ tokenizerTests =
     testCase "Rename expression" test_rename,
     testCase "Case when" test_case_when,
     testCase "Case when else" test_case_when_else,
-    testCase "Case when when else" test_case_when_when_else
+    testCase "Case when when else" test_case_when_when_else,
+    testCase "Union" test_union
     ]

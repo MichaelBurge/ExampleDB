@@ -20,6 +20,7 @@ data Token =
    | TkThen
    | TkElse
    | TkEnd
+   | TkUnion
    deriving (Eq, Show)
 
 lexStatementEnd :: CharParser Token
@@ -37,6 +38,7 @@ lexKeyword =
      <|> tryKeyword "then" TkThen
      <|> tryKeyword "else" TkElse
      <|> tryKeyword "end" TkEnd
+     <|> tryKeyword "union" TkUnion
 
 lexIdentifier :: CharParser Token
 lexIdentifier =
