@@ -1,5 +1,7 @@
 module Database.Toxic.Query.AST where
 
+import qualified Data.Text as T
+
 import Database.Toxic.Types
 
 data Literal =
@@ -7,7 +9,8 @@ data Literal =
   deriving (Eq, Show)
 
 data Expression =
-  ELiteral Literal
+    ELiteral Literal
+  | ERename Expression T.Text
   deriving (Eq, Show)
 
 data Query = Query {
