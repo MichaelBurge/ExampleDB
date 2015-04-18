@@ -103,8 +103,10 @@ test_union =
         CompositeQuery {
            queryCombineOperation = QueryCombineUnion,
            queryConstituentQueries = V.fromList [
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True  },
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False }
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
+                           querySource = Nothing },
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False,
+                           querySource = Nothing }
            ]
          }
       expectedColumn = Column { columnName = "literal", columnType = TBool }

@@ -75,11 +75,17 @@ select_item =
 
 select_clause :: TokenParser (ArrayOf Expression)
 select_clause = V.fromList <$> many select_item
-  
+
+from_clause :: TokenParser Query
+from_clause =
+  let subquery = matchToken TkOpen *> query <* matchToken TkClose
+  in matchToken TkFrom *> try subquery
+
 single_query :: TokenParser Query
 single_query = matchToken TkSelect *> do
   expressions <- select_clause
-  return $ SingleQuery { queryProject = expressions }
+  source <- optionMaybe from_clause
+  return $ SingleQuery { queryProject = expressions, querySource = source }
 
 composite_query :: TokenParser Query
 composite_query =

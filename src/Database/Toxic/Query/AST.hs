@@ -21,12 +21,13 @@ data QueryCombineOperation =
   deriving (Eq, Show)
 
 data Query = SingleQuery {
-  queryProject :: ArrayOf Expression
+  queryProject :: ArrayOf Expression,
+  querySource  :: Maybe Query
   } | CompositeQuery {
    queryCombineOperation   :: QueryCombineOperation,
    queryConstituentQueries :: ArrayOf Query
-  } deriving (Eq, Show)
-
+  }
+  deriving (Eq, Show)
 data Statement =
   SQuery Query
   deriving (Eq, Show)
@@ -34,7 +35,8 @@ data Statement =
 
 singleton_statement :: Expression -> Statement
 singleton_statement expression = SQuery $ SingleQuery {
-  queryProject = V.singleton expression
+  queryProject = V.singleton expression,
+  querySource = Nothing
   }
 
 singleton_stream :: Column -> Value -> Stream

@@ -96,12 +96,35 @@ test_union =
         CompositeQuery {
            queryCombineOperation = QueryCombineUnion,
            queryConstituentQueries = V.fromList [
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True  },
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False }
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
+                           querySource = Nothing },
+             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False,
+                           querySource = Nothing }
            ]
          }
   in assert_tokens_parse tokens expectedStatement
 
+test_subquery :: Assertion
+test_subquery =
+  let tokens =
+        [
+          TkSelect,
+            TkTrue,
+          TkFrom, TkOpen,
+            TkSelect,
+              TkFalse,
+          TkClose,
+          TkStatementEnd
+        ]
+      expectedStatement = SQuery $
+        SingleQuery {
+          queryProject = V.singleton $ ELiteral $ LBool True,
+          querySource = Just $ SingleQuery {
+            queryProject = V.singleton $ ELiteral $ LBool False,
+            querySource = Nothing
+            }
+          }
+  in assert_tokens_parse tokens expectedStatement
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -110,6 +133,7 @@ parserTests =
     testCase "Case When" test_case_when,
     testCase "Case when else" test_case_when_else,
     testCase "Case when when else" test_case_when_when_else,
-    testCase "Union" test_union
+    testCase "Union" test_union,
+    testCase "Subquery" test_subquery
     ]
   

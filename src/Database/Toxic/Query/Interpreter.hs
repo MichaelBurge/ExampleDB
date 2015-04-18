@@ -72,7 +72,7 @@ resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
 resolveQueryBindings environment query = return [nullContext]
 
 evaluateSingleQuery :: Environment -> Query -> IO Stream
-evaluateSingleQuery environment query@(SingleQuery _) =
+evaluateSingleQuery environment query@(SingleQuery _ _) =
   let streamHeader     = queryColumns query
       queryExpressions = queryProject query :: ArrayOf Expression
   in do
@@ -101,7 +101,7 @@ evaluateUnionQuery environment queries =
 evaluateQuery :: Environment -> Query -> IO Stream
 evaluateQuery environment query =
   case query of
-    SingleQuery _ -> evaluateSingleQuery environment query
+    SingleQuery _ _ -> evaluateSingleQuery environment query
     CompositeQuery QueryCombineUnion queries ->
       evaluateUnionQuery environment queries
       
