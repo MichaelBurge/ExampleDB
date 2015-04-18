@@ -86,6 +86,13 @@ test_cross_join =
       expectedStream = singleton_stream expectedColumn $ VBool True
   in assertQueryResults nullEnvironment query expectedStream
 
+test_subquery_cross_join_cardinality :: Assertion
+test_subquery_cross_join_cardinality =
+  let query = "select true from (select false union select false), (select false union select false), (select false union select false);"
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = single_column_stream expectedColumn $ replicate 8 $ VBool True
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -97,5 +104,6 @@ exampleQueriesTests =
     testCase "Case when when" test_case_when_when,
     testCase "Union" test_union,
     testCase "Subquery" test_subquery,
-    testCase "Cross Join" test_cross_join
+    testCase "Cross Join" test_cross_join,
+    testCase "Subquery/cross-join cardinality" test_subquery_cross_join_cardinality
     ]
