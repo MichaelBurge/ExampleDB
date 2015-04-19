@@ -21,12 +21,15 @@ library
     Database.Toxic.Query.AST
     Database.Toxic.Query.Interpreter
     Database.Toxic.Query.Tokenizer
+    Database.Toxic.Streams
     Database.Toxic.Types
   build-depends:
     base >=4.7 && <4.8,
+    containers,
     mtl,
     parsec,
     text,
+    text-show,
     vector
 
   -- hs-source-dirs:      
@@ -38,6 +41,7 @@ test-suite toxic-sludge-tests
   type: exitcode-stdio-1.0
   build-depends:
     base >=4.7 && <4.8,
+    containers,
     HUnit,
     mtl,
     parsec,
@@ -46,6 +50,7 @@ test-suite toxic-sludge-tests
     test-framework-hunit,
     test-framework-quickcheck2,
     text,
+    text-show,
     vector
   main-is: Tests/Main.hs
   buildable: True

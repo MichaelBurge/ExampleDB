@@ -21,6 +21,7 @@ data Token =
    | TkElse
    | TkEnd
    | TkUnion
+   | TkAll
    | TkFrom
 
   -- Symbols
@@ -54,6 +55,7 @@ lexKeyword =
      <|> tryKeyword "else" TkElse
      <|> tryKeyword "end" TkEnd
      <|> tryKeyword "union" TkUnion
+     <|> tryKeyword "all" TkAll
      <|> tryKeyword "from" TkFrom
 
 lexIdentifier :: CharParser Token

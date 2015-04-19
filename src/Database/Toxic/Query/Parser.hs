@@ -101,11 +101,11 @@ single_query = matchToken TkSelect *> do
 composite_query :: TokenParser Query
 composite_query =
   let one_or_more = V.fromList <$>
-                    sepBy1 single_query (matchToken TkUnion)
+                    sepBy1 single_query (matchToken TkUnion *> matchToken TkAll)
   in do
     composite <- one_or_more
     when (V.length composite == 1) $ fail "A single composite query is just a single query"
-    return $ CompositeQuery QueryCombineUnion composite
+    return $ SumQuery QuerySumUnionAll composite
 
 product_query :: TokenParser Query
 product_query = 

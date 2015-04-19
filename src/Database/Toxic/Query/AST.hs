@@ -17,15 +17,12 @@ data Expression =
   | EVariable T.Text
   deriving (Eq, Show)
 
-data QueryCombineOperation =
-  QueryCombineUnion
-  deriving (Eq, Show)
 
 data Query = SingleQuery {
   queryProject :: ArrayOf Expression,
   querySource  :: Maybe Query
-  } | CompositeQuery {
-   queryCombineOperation   :: QueryCombineOperation,
+  } | SumQuery {
+   queryCombineOperation   :: QuerySumOperation,
    queryConstituentQueries :: ArrayOf Query
   } | ProductQuery {
   queryFactors :: ArrayOf Query
@@ -41,15 +38,3 @@ singleton_statement expression = SQuery $ SingleQuery {
   queryProject = V.singleton expression,
   querySource = Nothing
   }
-
-singleton_stream :: Column -> Value -> Stream
-singleton_stream column value =
-  let header = V.singleton column
-      records = [ Record $ V.singleton value ]
-  in Stream { streamHeader = header, streamRecords = records }
-
-single_column_stream :: Column -> [ Value ] -> Stream
-single_column_stream column values =
-  let header = V.singleton column
-      records = map (Record . V.singleton) values
-  in Stream { streamHeader = header, streamRecords = records }

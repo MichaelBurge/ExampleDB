@@ -32,3 +32,10 @@ data Table = Table {
   } deriving (Eq, Show)
 
 
+data QuerySumOperation =
+  QuerySumUnionAll
+  deriving (Eq, Show)
+
+data QueryProductOperation =
+  QueryProductCrossJoin
+  deriving (Eq, Show)

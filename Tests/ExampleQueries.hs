@@ -2,6 +2,7 @@
 
 module Tests.ExampleQueries (exampleQueriesTests) where
 
+import Database.Toxic.Streams
 import Database.Toxic.Types
 import Database.Toxic.Query.AST
 import Database.Toxic.Query.Interpreter
@@ -67,7 +68,7 @@ test_case_when_when =
 
 test_union :: Assertion
 test_union =
-  let query = "select true union select false;"
+  let query = "select true union all select false;"
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = single_column_stream expectedColumn [ VBool True, VBool False ]
   in assertQueryResults nullEnvironment query expectedStream
@@ -88,7 +89,7 @@ test_cross_join =
 
 test_subquery_cross_join_cardinality :: Assertion
 test_subquery_cross_join_cardinality =
-  let query = "select true from (select false union select false), (select false union select false), (select false union select false);"
+  let query = "select true from (select false union all select false), (select false union all select false), (select false union all select false);"
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = single_column_stream expectedColumn $ replicate 8 $ VBool True
   in assertQueryResults nullEnvironment query expectedStream

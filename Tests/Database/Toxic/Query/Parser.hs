@@ -88,13 +88,13 @@ test_union =
   let tokens =
         [
           TkSelect, TkTrue,
-          TkUnion,
+          TkUnion, TkAll,
           TkSelect, TkFalse,
           TkStatementEnd
         ]
       expectedStatement = SQuery $
-        CompositeQuery {
-           queryCombineOperation = QueryCombineUnion,
+        SumQuery {
+           queryCombineOperation = QuerySumUnionAll,
            queryConstituentQueries = V.fromList [
              SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
                            querySource = Nothing },

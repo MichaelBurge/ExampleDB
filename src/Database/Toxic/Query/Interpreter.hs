@@ -3,16 +3,17 @@
 module Database.Toxic.Query.Interpreter where
 
 import Database.Toxic.Query.AST
+import Database.Toxic.Streams
 import Database.Toxic.Types
 
 import Control.Applicative
+import qualified Data.Map as M
 import qualified Data.Text as T
-
 import qualified Data.Vector as V
 
 data Environment = Environment { }
 
-data BindingContext = BindingContext { }
+newtype BindingContext = BindingContext (M.Map T.Text Value)
 
 nullEnvironment :: Environment
 nullEnvironment = error "TODO: Implement nullEnvironment"
@@ -24,17 +25,29 @@ literalType :: Literal -> Type
 literalType literal = case literal of
   LBool _ -> TBool
 
+valueType :: Value -> Type
+valueType = error "Implement valueType"
+
+lookup_value :: BindingContext -> T.Text -> Value
+lookup_value (BindingContext context) name =
+  case M.lookup name context of
+    Just value -> value
+    Nothing -> error $ "Unknown variable " ++ show name
+  
+
 expressionType :: Expression -> Type
 expressionType expression = case expression of
   ELiteral x -> literalType x
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
+  EVariable name -> TBool -- TODO: Fix this
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
   ELiteral _ -> "literal"
   ERename _ x -> x
   ECase _ _ -> "case"
+  EVariable name -> name
 
 expressionColumn :: Expression -> Column
 expressionColumn expression = Column {
@@ -63,21 +76,33 @@ evaluateOneExpression context expression = case expression of
       Nothing -> case otherwise of
         Just x -> evaluateOneExpression context x
         Nothing -> VNull
+  EVariable name -> lookup_value context name
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
   Record $ V.map (evaluateOneExpression context) expressions
 
+transformStreamToBindings :: Stream -> SetOf BindingContext
+transformStreamToBindings stream =
+  let unwrapRecord (Record values) = values
+      names = V.map columnName $ streamHeader stream
+      nameValuePairs = map (V.zip names) $
+                       map unwrapRecord $
+                       streamRecords stream :: [ArrayOf (T.Text, Value) ]
+      bindingContexts = map (BindingContext . M.fromList . V.toList) nameValuePairs
+  in bindingContexts
+
 resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
 resolveQueryBindings environment query =
   let mapResults innerQuery = do
         innerStream <- evaluateQuery environment innerQuery
-        return $ map (const nullContext) $ streamRecords innerStream
+        return $ transformStreamToBindings innerStream
   in case query of
     SingleQuery { querySource = Nothing } -> return [nullContext]
     SingleQuery { querySource = Just innerQuery } -> mapResults innerQuery
-    CompositeQuery { } -> mapResults query
+    SumQuery { } -> mapResults query
     ProductQuery { } -> mapResults query
+    
 evaluateSingleQuery :: Environment -> Query -> IO Stream
 evaluateSingleQuery environment query@(SingleQuery _ _) =
   let streamHeader     = queryColumns query
@@ -92,8 +117,8 @@ evaluateSingleQuery environment query@(SingleQuery _ _) =
     
 evaluateSingleQuery _ query = error $ "evaluateSingleQuery called on something other than a single query" ++ show query
 
-evaluateUnionQuery :: Environment -> ArrayOf Query -> IO Stream
-evaluateUnionQuery environment queries =
+evaluateUnionAllQuery :: Environment -> ArrayOf Query -> IO Stream
+evaluateUnionAllQuery environment queries =
   let firstQuery = V.head queries
       header     = queryColumns firstQuery
       combinedRecords = concatMapM (\x -> streamRecords <$> evaluateQuery environment x) (V.toList queries)
@@ -122,8 +147,8 @@ evaluateQuery :: Environment -> Query -> IO Stream
 evaluateQuery environment query =
   case query of
     SingleQuery _ _ -> evaluateSingleQuery environment query
-    CompositeQuery QueryCombineUnion queries ->
-      evaluateUnionQuery environment queries
+    SumQuery QuerySumUnionAll queries ->
+      evaluateUnionAllQuery environment queries
     ProductQuery queryFactors ->
       evaluateProductQuery environment queryFactors
 

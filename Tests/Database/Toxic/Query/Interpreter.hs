@@ -4,6 +4,7 @@ module Tests.Database.Toxic.Query.Interpreter (interpreterTests) where
 
 import qualified Data.Vector as V
 
+import Database.Toxic.Streams
 import Database.Toxic.Types
 import Database.Toxic.Query.AST
 import Database.Toxic.Query.Interpreter
@@ -100,8 +101,8 @@ test_case_when_when =
 test_union :: Assertion
 test_union =
   let statement = SQuery $
-        CompositeQuery {
-           queryCombineOperation = QueryCombineUnion,
+        SumQuery {
+           queryCombineOperation = QuerySumUnionAll,
            queryConstituentQueries = V.fromList [
              SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
                            querySource = Nothing },
@@ -164,8 +165,8 @@ test_subquery_multiple_rows =
         queryProject = V.singleton $ ELiteral $ LBool False,
         querySource = Nothing
         }
-      unionQuery = CompositeQuery {
-        queryCombineOperation = QueryCombineUnion,
+      unionQuery = SumQuery {
+        queryCombineOperation = QuerySumUnionAll,
         queryConstituentQueries = V.fromList [ falseQuery, falseQuery ]
         }
       statement = SQuery $ SingleQuery {
@@ -184,8 +185,8 @@ test_cross_join_multiple_rows =
         queryProject = V.singleton $ ELiteral $ LBool False,
         querySource = Nothing
         }
-      unionQuery = CompositeQuery {
-        queryCombineOperation = QueryCombineUnion,
+      unionQuery = SumQuery {
+        queryCombineOperation = QuerySumUnionAll,
         queryConstituentQueries = V.fromList [ falseQuery, falseQuery ]
         }
       productQuery = ProductQuery {
@@ -202,6 +203,22 @@ test_cross_join_multiple_rows =
     actualStream <- execute nullEnvironment statement
     assertEqual "" expectedStream actualStream
 
+test_variable :: Assertion
+test_variable =
+  let query = SingleQuery {
+        queryProject = V.singleton $ EVariable "x",
+        querySource = Just $ SingleQuery {
+          queryProject = V.singleton $ ERename (ELiteral $ LBool True) "x",
+          querySource = Nothing
+          }
+        }
+      expectedColumn = Column { columnName = "x", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+      statement = SQuery query
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "" expectedStream actualStream
+
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
@@ -214,5 +231,6 @@ interpreterTests =
     testCase "Union" test_union,
     testCase "Subquery" test_subquery,
     testCase "Subquery(Multiple rows" test_subquery_multiple_rows,
-    testCase "Cross Join" test_cross_join
+    testCase "Cross Join" test_cross_join,
+    testCase "Variable" test_variable
     ]
