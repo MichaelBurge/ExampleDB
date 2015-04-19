@@ -40,3 +40,10 @@ data QuerySumOperation =
 data QueryProductOperation =
   QueryProductCrossJoin
   deriving (Eq, Show)
+
+data AggregateFunction state = AggregateFunction {
+  aggregateInitialize :: state,
+  aggregateAccumulate :: state -> ArrayOf Value -> state,
+  aggregateFinalize   :: state -> Value,
+  aggregateType       :: Type
+  }

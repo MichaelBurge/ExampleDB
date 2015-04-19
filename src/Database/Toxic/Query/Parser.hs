@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Database.Toxic.Query.Parser where
 
 import Database.Toxic.Types
@@ -6,6 +8,7 @@ import Database.Toxic.Query.Tokenizer
 
 import Control.Applicative ((<$>), (*>), (<*))
 import Control.Monad
+import Data.Monoid
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Text.Parsec
@@ -19,10 +22,10 @@ matchToken token = tokenPrim show ignorePosition is_token
     is_token x | x == token = Just token
     is_token _ = Nothing
 
-identifier :: TokenParser Token
+identifier :: TokenParser T.Text
 identifier = tokenPrim show ignorePosition is_token
   where
-    is_token token@(TkIdentifier x) = Just token
+    is_token token@(TkIdentifier x) = Just x
     is_token _ = Nothing
 
 literal :: TokenParser Literal
@@ -57,25 +60,17 @@ rename_expression = do
   return $ ERename original new_name
 
 variable :: TokenParser Expression
-variable = do
-  name <- identifier
-  case name of
-    TkIdentifier x -> return $ EVariable x
-    _ -> error $ "variable: Unexpected value " ++ show name
+variable = EVariable <$> identifier
 
 expression :: TokenParser Expression
 expression =
         try(ELiteral <$> literal)
     <|> case_when_expression
+    <|> try function
     <|> variable
 
 rename_clause :: TokenParser T.Text
-rename_clause = do
-  matchToken TkRename
-  new_name_token <- identifier
-  case new_name_token of
-    TkIdentifier new_name -> return new_name
-    _ -> error $ "rename_clause: Unexpected value - " ++ show new_name_token
+rename_clause = matchToken TkRename *> identifier
 
 select_item :: TokenParser Expression
 select_item =
@@ -87,6 +82,17 @@ select_clause = V.fromList <$> many select_item
 
 subquery :: TokenParser Query
 subquery = matchToken TkOpen *> query <* matchToken TkClose
+
+function :: TokenParser Expression
+function = do
+  name <- identifier
+  matchToken TkOpen
+  arguments <- sepBy1 expression $ matchToken TkSequence
+  matchToken TkClose
+  case name of
+    "bool_or" -> return $ EAggregate QAggBoolOr
+    _ -> fail $ T.unpack $ "Unknown function " <> name
+  
 
 from_clause :: TokenParser Query
 from_clause = matchToken TkFrom *> (

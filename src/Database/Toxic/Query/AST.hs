@@ -11,11 +11,16 @@ data Literal =
   | LNull
   deriving (Eq, Show)
 
+data QueryAggregate =
+  QAggBoolOr
+  deriving (Eq, Show)
+
 data Expression =
     ELiteral Literal
   | ERename Expression T.Text
   | ECase (ArrayOf (Condition, Expression)) (Maybe Expression)
   | EVariable T.Text
+  | EAggregate QueryAggregate
   deriving (Eq, Show)
 
 
