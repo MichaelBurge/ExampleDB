@@ -202,7 +202,6 @@ test_cross_join_multiple_rows =
     actualStream <- execute nullEnvironment statement
     assertEqual "" expectedStream actualStream
 
-    
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [

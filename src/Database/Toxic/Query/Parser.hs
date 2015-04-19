@@ -55,10 +55,18 @@ rename_expression = do
   new_name <- rename_clause
   return $ ERename original new_name
 
+variable :: TokenParser Expression
+variable = do
+  name <- identifier
+  case name of
+    TkIdentifier x -> return $ EVariable x
+    _ -> error $ "variable: Unexpected value " ++ show name
+
 expression :: TokenParser Expression
 expression =
         try(ELiteral <$> literal)
     <|> case_when_expression
+    <|> variable
 
 rename_clause :: TokenParser T.Text
 rename_clause = do

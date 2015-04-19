@@ -14,6 +14,7 @@ data Expression =
     ELiteral Literal
   | ERename Expression T.Text
   | ECase (ArrayOf (Condition, Expression)) (Maybe Expression)
+  | EVariable T.Text
   deriving (Eq, Show)
 
 data QueryCombineOperation =
