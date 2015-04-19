@@ -29,6 +29,7 @@ literal :: TokenParser Literal
 literal =
       (matchToken TkTrue *> return (LBool True))
   <|> (matchToken TkFalse *> return (LBool False))
+  <|> (matchToken TkNull *> return LNull)
 
 case_condition :: TokenParser (Condition, Expression)
 case_condition = do

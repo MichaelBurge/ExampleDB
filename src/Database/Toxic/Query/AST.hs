@@ -7,7 +7,8 @@ import Database.Toxic.Types
 type Condition = Expression
 
 data Literal =
-  LBool Bool
+    LBool Bool
+  | LNull
   deriving (Eq, Show)
 
 data Expression =

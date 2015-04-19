@@ -12,7 +12,8 @@ data Value =
     deriving (Eq, Show)
 
 data Type =
-    TBool
+      TBool
+    | TUnknown
     deriving (Eq, Show)
 
 data Column = Column {

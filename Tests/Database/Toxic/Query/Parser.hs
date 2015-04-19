@@ -171,6 +171,15 @@ test_variable =
           }
   in assert_tokens_parse tokens expectedStatement
 
+test_null :: Assertion
+test_null =
+  let tokens =
+        [
+          TkSelect, TkNull, TkStatementEnd
+        ]
+      expectedStatement = singleton_statement $ ELiteral LNull
+  in assert_tokens_parse tokens expectedStatement
+
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -182,6 +191,7 @@ parserTests =
     testCase "Union" test_union,
     testCase "Subquery" test_subquery,
     testCase "Cross Join" test_cross_join,
-    testCase "Variable" test_variable
+    testCase "Variable" test_variable,
+    testCase "Null" test_null
     ]
   

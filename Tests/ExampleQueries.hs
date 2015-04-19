@@ -94,6 +94,13 @@ test_subquery_cross_join_cardinality =
       expectedStream = single_column_stream expectedColumn $ replicate 8 $ VBool True
   in assertQueryResults nullEnvironment query expectedStream
 
+test_null :: Assertion
+test_null =
+  let query = "select null;"
+      expectedColumn = Column { columnName = "literal", columnType = TUnknown }
+      expectedStream = singleton_stream expectedColumn VNull
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -106,5 +113,6 @@ exampleQueriesTests =
     testCase "Union" test_union,
     testCase "Subquery" test_subquery,
     testCase "Cross Join" test_cross_join,
-    testCase "Subquery/cross-join cardinality" test_subquery_cross_join_cardinality
+    testCase "Subquery/cross-join cardinality" test_subquery_cross_join_cardinality,
+    testCase "Null" test_null
     ]

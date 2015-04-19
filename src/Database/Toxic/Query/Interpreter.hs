@@ -24,6 +24,7 @@ nullContext = error "TODO: Implement nullContext"
 literalType :: Literal -> Type
 literalType literal = case literal of
   LBool _ -> TBool
+  LNull -> TUnknown
 
 valueType :: Value -> Type
 valueType = error "Implement valueType"
@@ -40,7 +41,7 @@ expressionType expression = case expression of
   ELiteral x -> literalType x
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
-  EVariable name -> TBool -- TODO: Fix this
+  EVariable name -> TUnknown
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
@@ -61,6 +62,7 @@ queryColumns query = V.map expressionColumn (queryProject query)
 evaluateLiteral :: Literal -> Value
 evaluateLiteral literal = case literal of
   LBool x -> VBool x
+  LNull -> VNull
 
 -- TODO: This is only for row-wise expressions, not aggregates.
 evaluateOneExpression :: BindingContext -> Expression -> Value

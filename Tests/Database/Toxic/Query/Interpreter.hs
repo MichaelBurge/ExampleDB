@@ -212,9 +212,18 @@ test_variable =
           querySource = Nothing
           }
         }
-      expectedColumn = Column { columnName = "x", columnType = TBool }
+      expectedColumn = Column { columnName = "x", columnType = TUnknown }
       expectedStream = singleton_stream expectedColumn $ VBool True
       statement = SQuery query
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "" expectedStream actualStream
+
+test_null :: Assertion
+test_null =
+  let statement = singleton_statement $ ELiteral LNull
+      expectedColumn = Column { columnName = "literal", columnType = TUnknown }
+      expectedStream = singleton_stream expectedColumn $ VNull
   in do
     actualStream <- execute nullEnvironment statement
     assertEqual "" expectedStream actualStream
@@ -232,5 +241,6 @@ interpreterTests =
     testCase "Subquery" test_subquery,
     testCase "Subquery(Multiple rows" test_subquery_multiple_rows,
     testCase "Cross Join" test_cross_join,
-    testCase "Variable" test_variable
+    testCase "Variable" test_variable,
+    testCase "Null" test_null
     ]
