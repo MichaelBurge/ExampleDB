@@ -228,6 +228,15 @@ test_null =
     actualStream <- execute nullEnvironment statement
     assertEqual "" expectedStream actualStream
 
+test_aggregate :: Assertion
+test_aggregate =
+  let statement = singleton_statement $ EAggregate QAggBoolOr
+      expectedColumn = Column { columnName = "bool_or", columnType = TUnknown }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "" expectedStream actualStream
+
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
@@ -242,5 +251,6 @@ interpreterTests =
     testCase "Subquery(Multiple rows" test_subquery_multiple_rows,
     testCase "Cross Join" test_cross_join,
     testCase "Variable" test_variable,
-    testCase "Null" test_null
+    testCase "Null" test_null,
+    testCase "Aggregate" test_aggregate
     ]

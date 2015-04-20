@@ -2,6 +2,7 @@
 
 module Database.Toxic.Query.Interpreter where
 
+import Database.Toxic.Aggregates
 import Database.Toxic.Query.AST
 import Database.Toxic.Streams
 import Database.Toxic.Types
@@ -26,15 +27,16 @@ literalType literal = case literal of
   LBool _ -> TBool
   LNull -> TUnknown
 
-valueType :: Value -> Type
-valueType = error "Implement valueType"
-
 lookup_value :: BindingContext -> T.Text -> Value
 lookup_value (BindingContext context) name =
   case M.lookup name context of
     Just value -> value
     Nothing -> error $ "Unknown variable " ++ show name
-  
+
+aggregateFunctionFromBuiltin :: QueryAggregate -> AggregateFunction Value
+aggregateFunctionFromBuiltin aggregate =
+  case aggregate of
+    QAggBoolOr -> bool_or
 
 expressionType :: Expression -> Type
 expressionType expression = case expression of
@@ -42,6 +44,7 @@ expressionType expression = case expression of
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
   EVariable name -> TUnknown
+  EAggregate aggregate -> aggregateType $ aggregateFunctionFromBuiltin aggregate
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
@@ -49,6 +52,7 @@ expressionName expression = case expression of
   ERename _ x -> x
   ECase _ _ -> "case"
   EVariable name -> name
+  EAggregate aggregate -> aggregateName $ aggregateFunctionFromBuiltin aggregate
 
 expressionColumn :: Expression -> Column
 expressionColumn expression = Column {
@@ -79,6 +83,7 @@ evaluateOneExpression context expression = case expression of
         Just x -> evaluateOneExpression context x
         Nothing -> VNull
   EVariable name -> lookup_value context name
+  EAggregate _ -> error "evaluateOneExpression: Cannot evaluate an aggregate function over a single binding context"
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 

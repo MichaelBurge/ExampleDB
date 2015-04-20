@@ -1,9 +1,9 @@
 module Database.Toxic.Types where
 
-import Data.Text
-import Data.Vector
+import qualified Data.Text as T
+import qualified Data.Vector as V
 
-type ArrayOf a = Vector a
+type ArrayOf a = V.Vector a
 type SetOf a = [ a ]
   
 data Value =
@@ -17,7 +17,7 @@ data Type =
     deriving (Eq, Show)
 
 data Column = Column {
-  columnName :: Text,
+  columnName :: T.Text,
   columnType :: Type
   } deriving (Eq, Show)
 
@@ -28,7 +28,7 @@ data Stream = Stream {
   } deriving (Eq, Show)
 
 data Table = Table {
-  tableName   :: Text,
+  tableName   :: T.Text,
   tableStream :: Stream
   } deriving (Eq, Show)
 
@@ -45,5 +45,6 @@ data AggregateFunction state = AggregateFunction {
   aggregateInitialize :: state,
   aggregateAccumulate :: state -> ArrayOf Value -> state,
   aggregateFinalize   :: state -> Value,
+  aggregateName       :: T.Text,
   aggregateType       :: Type
   }
