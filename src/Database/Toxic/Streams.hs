@@ -2,6 +2,7 @@ module Database.Toxic.Streams where
 
 import Database.Toxic.Types
 
+import Data.List (foldl')
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Text.Show.Text as T
@@ -22,7 +23,8 @@ sumStreams op streams =
   else
     let header = streamHeader $ V.head streams
         records = case op of
-          QuerySumUnionAll -> unionAllRecords $ V.map streamRecords streams
+          QuerySumUnionAll -> unionAllRecords $
+                              V.map streamRecords streams
     in Stream {
       streamHeader = header,
       streamRecords = records
@@ -39,9 +41,9 @@ crossJoinRecords records =
 crossJoinStreams :: ArrayOf Stream -> Stream
 crossJoinStreams streams =
   let getNewName idx name = T.cons '$' $
-                         T.append (T.show idx) $
-                         T.cons '.' $
-                         name
+                            T.append (T.show idx) $
+                            T.cons '.' $
+                            name
       getNewNames idx names = V.map (getNewName idx) names :: ArrayOf T.Text
       getNewColumns idx columns =
         let names = V.map columnName columns
@@ -75,6 +77,17 @@ multiplyStreams op streams =
 
 unionAllRecords :: ArrayOf (SetOf Record) -> SetOf Record
 unionAllRecords recordss = concat $ V.toList recordss
+
+summarize_stream :: Stream -> ArrayOf AggregateFunction -> Record
+summarize_stream stream aggregates =
+  let initialStates = V.map aggregateInitialize aggregates :: ArrayOf AggregateState
+      accumulateValue states values = V.zipWith3 aggregateAccumulate aggregates values states :: ArrayOf AggregateState
+      unwrapRecord (Record x) = x :: ArrayOf Value
+      unwrappedRecords = map unwrapRecord $
+                         streamRecords stream :: SetOf (ArrayOf Value)
+  in Record $
+     V.zipWith aggregateFinalize aggregates $
+     foldl' accumulateValue initialStates unwrappedRecords
 
 
 singleton_stream :: Column -> Value -> Stream

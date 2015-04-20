@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings,RankNTypes #-}
 
 module Database.Toxic.Query.Interpreter where
 
@@ -33,7 +33,7 @@ lookup_value (BindingContext context) name =
     Just value -> value
     Nothing -> error $ "Unknown variable " ++ show name
 
-aggregateFunctionFromBuiltin :: QueryAggregate -> AggregateFunction Value
+aggregateFunctionFromBuiltin :: QueryAggregate -> AggregateFunction
 aggregateFunctionFromBuiltin aggregate =
   case aggregate of
     QAggBoolOr -> bool_or

@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Database.Toxic.Types where
 
 import qualified Data.Text as T
@@ -41,10 +43,11 @@ data QueryProductOperation =
   QueryProductCrossJoin
   deriving (Eq, Show)
 
-data AggregateFunction state = AggregateFunction {
-  aggregateInitialize :: state,
-  aggregateAccumulate :: state -> ArrayOf Value -> state,
-  aggregateFinalize   :: state -> Value,
+type AggregateState = Value
+data AggregateFunction = AggregateFunction {
+  aggregateInitialize :: AggregateState,
+  aggregateAccumulate :: Value -> AggregateState -> AggregateState,
+  aggregateFinalize   :: AggregateState -> Value,
   aggregateName       :: T.Text,
   aggregateType       :: Type
-  }
+}

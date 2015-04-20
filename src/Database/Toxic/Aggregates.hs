@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings,RankNTypes #-}
 module Database.Toxic.Aggregates where
 
 import qualified Data.Text as T
@@ -13,19 +13,15 @@ bind1 arguments function =
      then error $ "Incorrect number of arguments: " ++ show numArguments
      else function $ V.head arguments
 
-accumulate1 :: (Value -> Value -> Value) -> Value -> ArrayOf Value -> Value
-accumulate1 f x arguments = bind1 arguments $ \y ->
-  f x y
-
-simpleFoldAggregate :: T.Text -> (Value -> Value -> Value) -> Value -> AggregateFunction Value
+simpleFoldAggregate :: T.Text -> (AggregateState -> Value -> Value) -> Value -> AggregateFunction
 simpleFoldAggregate name f initial =
   AggregateFunction {
     aggregateInitialize = initial,
-    aggregateAccumulate = accumulate1 f,
+    aggregateAccumulate = f,
     aggregateFinalize   = id,
     aggregateName       = name,
     aggregateType       = valueType initial
     }
 
-bool_or :: AggregateFunction Value
+bool_or :: AggregateFunction
 bool_or = simpleFoldAggregate "bool_or" operatorOr $ VBool False

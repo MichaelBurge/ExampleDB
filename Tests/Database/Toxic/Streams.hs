@@ -4,6 +4,7 @@ module Tests.Database.Toxic.Streams (streamsTests) where
 
 import qualified Data.Vector as V
 
+import Database.Toxic.Aggregates
 import Database.Toxic.Streams
 import Database.Toxic.Types
 
@@ -62,10 +63,19 @@ test_cross_join =
       actualStream = crossJoinStreams $ V.fromList [ stream1, stream2 ]
   in assertEqual "" expectedStream actualStream
 
+test_aggregate :: Assertion
+test_aggregate =
+  let column = Column { columnName = "x", columnType = TBool }
+      stream = single_column_stream column $ [ VBool False, VBool True ]
+      expectedRecord = Record $ V.singleton $ VBool True
+      actualRecord = summarize_stream stream $ V.fromList [ bool_or ]
+  in assertEqual "" expectedRecord actualRecord
+
 streamsTests :: Test.Framework.Test
 streamsTests =
   testGroup "Streams" [
     testCase "Union all" test_union_all,
     testCase "Cross join(record)" test_cross_join_records,
-    testCase "Cross join" test_cross_join
+    testCase "Cross join" test_cross_join,
+    testCase "Aggregate" test_aggregate
     ]
