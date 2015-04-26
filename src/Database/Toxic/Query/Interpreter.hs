@@ -44,7 +44,8 @@ expressionType expression = case expression of
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
   EVariable name -> TUnknown
-  EAggregate aggregate -> aggregateType $ aggregateFunctionFromBuiltin aggregate
+  EAggregate aggregate _ -> aggregateType $ aggregateFunctionFromBuiltin aggregate
+  EPlaceholder _ -> error "expressionType: Placeholder given"
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
@@ -52,7 +53,8 @@ expressionName expression = case expression of
   ERename _ x -> x
   ECase _ _ -> "case"
   EVariable name -> name
-  EAggregate aggregate -> aggregateName $ aggregateFunctionFromBuiltin aggregate
+  EAggregate aggregate _ -> aggregateName $ aggregateFunctionFromBuiltin aggregate
+  EPlaceholder x -> T.cons '$' $ T.pack $ show x
 
 expressionColumn :: Expression -> Column
 expressionColumn expression = Column {
@@ -60,6 +62,30 @@ expressionColumn expression = Column {
   columnName = expressionName expression
   }
 
+-- | Splits a syntax tree on its aggregates, leaving a placeholder variable
+getAggregates :: Expression -> (Expression, ArrayOf (QueryAggregate, Expression))
+getAggregates expression =
+  case expression of
+    ELiteral _ -> (expression, V.empty)
+    ERename x name -> case getAggregates x of
+      (continuation, aggregates) ->
+        (ERename continuation name, aggregates)
+    ECase _ _ -> error "getAggregates: Aggregates in case expressions unsupported"
+    EVariable _ -> (expression, V.empty)
+    EAggregate aggregate argument ->
+      (EPlaceholder 0, V.singleton (aggregate, argument))
+    EPlaceholder x -> (expression, V.empty)
+
+hasAggregates :: Expression -> Bool
+hasAggregates expression =
+  case expression of
+    ECase _ _ -> False
+    ELiteral _ -> False
+    ERename x _ -> hasAggregates x
+    EAggregate _ _ -> True
+    EPlaceholder _ -> False
+    EVariable _ -> False
+  
 queryColumns :: Query -> ArrayOf Column
 queryColumns query = V.map expressionColumn (queryProject query)
 
@@ -68,7 +94,7 @@ evaluateLiteral literal = case literal of
   LBool x -> VBool x
   LNull -> VNull
 
--- TODO: This is only for row-wise expressions, not aggregates.
+-- | Evaluates 
 evaluateOneExpression :: BindingContext -> Expression -> Value
 evaluateOneExpression context expression = case expression of
   ELiteral literal -> evaluateLiteral literal
@@ -83,7 +109,7 @@ evaluateOneExpression context expression = case expression of
         Just x -> evaluateOneExpression context x
         Nothing -> VNull
   EVariable name -> lookup_value context name
-  EAggregate _ -> error "evaluateOneExpression: Cannot evaluate an aggregate function over a single binding context"
+  EAggregate _ _ -> error "evaluateOneExpression: Cannot evaluate an aggregate function over a single binding context"
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
@@ -109,9 +135,10 @@ resolveQueryBindings environment query =
     SingleQuery { querySource = Just innerQuery } -> mapResults innerQuery
     SumQuery { } -> mapResults query
     ProductQuery { } -> mapResults query
-    
-evaluateSingleQuery :: Environment -> Query -> IO Stream
-evaluateSingleQuery environment query@(SingleQuery _ _) =
+
+-- | Evaluates a query that has no aggregates
+evaluateRowWiseQuery :: Environment -> Query -> IO Stream
+evaluateRowWiseQuery environment query@(SingleQuery _ _) =
   let streamHeader     = queryColumns query
       queryExpressions = queryProject query :: ArrayOf Expression
   in do
@@ -121,6 +148,45 @@ evaluateSingleQuery environment query@(SingleQuery _ _) =
       streamHeader = streamHeader,
       streamRecords = streamRecords
       }
+
+unifyAggregates :: ArrayOf (Expression, ArrayOf(QueryAggregate, Expression)) -> (ArrayOf Expression, ArrayOf AggregateFunction)
+unifyAggregates = error "unifyAggregates: Unimplemented"
+
+getQueryPrimaryKey :: Query -> ArrayOf Expression
+getQueryPrimaryKey query = error "getQueryPrimaryKey: Unimplemented"
+
+getRowAggregates :: ArrayOf Expression -> (ArrayOf Expression, ArrayOf AggregateFunction)
+getRowAggregates expressions =
+  let splitExpressions = V.map getAggregates expressions
+      (continuations, aggregates) = unifyAggregates splitExpressions
+  in (continuations, aggregates)
+
+-- | Evaluates a query with aggregates over a primary key
+evaluateAggregateQuery :: Environment -> Query -> IO Stream
+evaluateAggregateQuery environment query@(SingleQuery _ _) =
+  let streamHeader = queryColumns query
+      selectExpressions = queryProject query
+      groupByExpressions = getQueryPrimaryKey query
+  in do
+    bindingContexts <- resolveQueryBindings environment query
+    let (inputExpressions, aggregates) = getRowAggregates selectExpressions
+    let bindAggregateInputs context =
+          let primaryKey = evaluateExpressions groupByExpressions context
+              aggregateInputs = evaluateExpressions inputExpressions context
+          in (primaryKey, aggregateInputs)
+    let aggregateInputs = map bindAggregateInputs bindingContexts
+    let summarization = summarizeByKey aggregateInputs aggregates
+    return $ Stream {
+      streamHeader = streamHeader,
+      streamRecords = M.elems summarization
+      }
+
+evaluateSingleQuery :: Environment -> Query -> IO Stream
+evaluateSingleQuery environment query@(SingleQuery _ _) =
+  if V.any hasAggregates $ queryProject query
+  then evaluateAggregateQuery environment query
+  else evaluateRowWiseQuery environment query     
+  
     
 evaluateSingleQuery _ query = error $ "evaluateSingleQuery called on something other than a single query" ++ show query
 

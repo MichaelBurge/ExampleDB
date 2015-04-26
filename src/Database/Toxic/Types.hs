@@ -4,26 +4,27 @@ module Database.Toxic.Types where
 
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import qualified Data.Map.Strict as M
 
 type ArrayOf a = V.Vector a
 type SetOf a = [ a ]
-  
+
 data Value =
       VBool Bool
     | VNull
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data Type =
       TBool
     | TUnknown
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data Column = Column {
   columnName :: T.Text,
   columnType :: Type
-  } deriving (Eq, Show)
+  } deriving (Eq, Ord, Show)
 
-data Record = Record (ArrayOf Value) deriving (Eq, Show)
+newtype Record = Record (ArrayOf Value) deriving (Eq, Ord, Show)
 data Stream = Stream {
   streamHeader  :: ArrayOf Column,
   streamRecords :: SetOf Record
@@ -51,3 +52,10 @@ data AggregateFunction = AggregateFunction {
   aggregateName       :: T.Text,
   aggregateType       :: Type
 }
+newtype AggregateRow = AggregateRow (ArrayOf AggregateState)
+
+type PrimaryKey = Record
+type Row = Record
+
+type PendingSummarization = M.Map PrimaryKey AggregateRow
+type Summarization = M.Map PrimaryKey Record

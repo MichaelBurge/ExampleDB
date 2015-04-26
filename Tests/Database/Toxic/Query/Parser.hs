@@ -186,7 +186,7 @@ test_bool_or =
         [
           TkSelect, TkIdentifier "bool_or", TkOpen, TkTrue, TkClose, TkStatementEnd
         ]
-      expectedStatement = singleton_statement $ EAggregate QAggBoolOr
+      expectedStatement = singleton_statement $ EAggregate QAggBoolOr $ ELiteral $ LBool True
   in assert_tokens_parse tokens expectedStatement
 
 parserTests :: Test.Framework.Test

@@ -2,6 +2,7 @@
 
 module Tests.Database.Toxic.Streams (streamsTests) where
 
+import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 
 import Database.Toxic.Aggregates
@@ -65,11 +66,12 @@ test_cross_join =
 
 test_aggregate :: Assertion
 test_aggregate =
-  let column = Column { columnName = "x", columnType = TBool }
-      stream = single_column_stream column $ [ VBool False, VBool True ]
-      expectedRecord = Record $ V.singleton $ VBool True
-      actualRecord = summarize_stream stream $ V.fromList [ bool_or ]
-  in assertEqual "" expectedRecord actualRecord
+  let key = Record $ V.singleton $ VBool True
+      value = key
+      inputs = [(key, value), (key, value)]
+      expectedMap = M.fromList [(key, value)]
+      actualMap = summarizeByKey inputs $ V.fromList [ bool_or ]
+  in assertEqual "" expectedMap actualMap
 
 streamsTests :: Test.Framework.Test
 streamsTests =

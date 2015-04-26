@@ -87,10 +87,10 @@ function :: TokenParser Expression
 function = do
   name <- identifier
   matchToken TkOpen
-  arguments <- sepBy1 expression $ matchToken TkSequence
+  argument <- expression
   matchToken TkClose
   case name of
-    "bool_or" -> return $ EAggregate QAggBoolOr
+    "bool_or" -> return $ EAggregate QAggBoolOr argument
     _ -> fail $ T.unpack $ "Unknown function " <> name
   
 

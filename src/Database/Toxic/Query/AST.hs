@@ -20,7 +20,8 @@ data Expression =
   | ERename Expression T.Text
   | ECase (ArrayOf (Condition, Expression)) (Maybe Expression)
   | EVariable T.Text
-  | EAggregate QueryAggregate
+  | EAggregate QueryAggregate Expression
+  | EPlaceholder Int
   deriving (Eq, Show)
 
 

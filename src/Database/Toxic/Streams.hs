@@ -3,6 +3,7 @@ module Database.Toxic.Streams where
 import Database.Toxic.Types
 
 import Data.List (foldl')
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Text.Show.Text as T
@@ -78,17 +79,33 @@ multiplyStreams op streams =
 unionAllRecords :: ArrayOf (SetOf Record) -> SetOf Record
 unionAllRecords recordss = concat $ V.toList recordss
 
-summarize_stream :: Stream -> ArrayOf AggregateFunction -> Record
-summarize_stream stream aggregates =
-  let initialStates = V.map aggregateInitialize aggregates :: ArrayOf AggregateState
-      accumulateValue states values = V.zipWith3 aggregateAccumulate aggregates values states :: ArrayOf AggregateState
-      unwrapRecord (Record x) = x :: ArrayOf Value
-      unwrappedRecords = map unwrapRecord $
-                         streamRecords stream :: SetOf (ArrayOf Value)
-  in Record $
-     V.zipWith aggregateFinalize aggregates $
-     foldl' accumulateValue initialStates unwrappedRecords
+accumulateRecord :: ArrayOf AggregateFunction -> AggregateRow -> Record -> AggregateRow
+accumulateRecord aggregates (AggregateRow states) (Record values) =
+  AggregateRow $ V.zipWith3 aggregateAccumulate aggregates values states
 
+finalizeRow :: ArrayOf AggregateFunction -> AggregateRow -> Record
+finalizeRow aggregates (AggregateRow states) =
+  Record $ V.zipWith aggregateFinalize aggregates states
+
+finalize :: ArrayOf AggregateFunction -> PendingSummarization -> Summarization
+finalize aggregates summarization = M.map (finalizeRow aggregates) summarization
+
+-- | Feeds an incoming stream of keys and values into a collection of aggregate functions.
+-- | There is a one-to-one relationship between each record's values and the
+-- | aggregate functions.
+summarizeByKey :: SetOf (PrimaryKey, Record) -> ArrayOf AggregateFunction -> Summarization
+summarizeByKey rows aggregates =
+  let initialStates = AggregateRow $ V.map aggregateInitialize aggregates
+      accumulateTuple :: PendingSummarization -> (PrimaryKey, Record) -> PendingSummarization
+      accumulateTuple summarization (key, inputs) =
+        let states = M.findWithDefault initialStates key summarization
+            newStates = accumulateRecord aggregates states inputs
+        in M.insert key newStates summarization
+      finalStates :: PendingSummarization
+      finalStates = foldl' accumulateTuple M.empty rows
+      finalRecords :: Summarization
+      finalRecords = finalize aggregates finalStates
+  in finalRecords
 
 singleton_stream :: Column -> Value -> Stream
 singleton_stream column value =
