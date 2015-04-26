@@ -231,7 +231,7 @@ test_null =
 test_aggregate :: Assertion
 test_aggregate =
   let statement = singleton_statement $ EAggregate QAggBoolOr $ ELiteral $ LBool True
-      expectedColumn = Column { columnName = "bool_or", columnType = TUnknown }
+      expectedColumn = Column { columnName = "bool_or", columnType = TBool }
       expectedStream = singleton_stream expectedColumn $ VBool True
   in do
     actualStream <- execute nullEnvironment statement

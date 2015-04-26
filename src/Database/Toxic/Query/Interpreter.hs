@@ -8,13 +8,16 @@ import Database.Toxic.Streams
 import Database.Toxic.Types
 
 import Control.Applicative
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V
 
 data Environment = Environment { }
 
-newtype BindingContext = BindingContext (M.Map T.Text Value)
+data BindingContext = BindingContext {
+  bindingVariables    :: M.Map T.Text Value,
+  bindingPlaceholders :: ArrayOf Value
+  }
 
 nullEnvironment :: Environment
 nullEnvironment = error "TODO: Implement nullEnvironment"
@@ -27,11 +30,26 @@ literalType literal = case literal of
   LBool _ -> TBool
   LNull -> TUnknown
 
-lookup_value :: BindingContext -> T.Text -> Value
-lookup_value (BindingContext context) name =
-  case M.lookup name context of
+lookupVariable :: BindingContext -> T.Text -> Value
+lookupVariable context name =
+  case M.lookup name $ bindingVariables context of
     Just value -> value
     Nothing -> error $ "Unknown variable " ++ show name
+
+lookupPlaceholder :: BindingContext -> Int -> Value
+lookupPlaceholder context index = (V.!) (bindingPlaceholders context) index
+
+variablesToContext :: M.Map T.Text Value -> BindingContext
+variablesToContext bindings = BindingContext {
+  bindingVariables = bindings,
+  bindingPlaceholders = V.empty
+  }
+
+placeholdersToContext :: ArrayOf Value -> BindingContext
+placeholdersToContext bindings = BindingContext {
+  bindingVariables = M.empty,
+  bindingPlaceholders = bindings
+  }
 
 aggregateFunctionFromBuiltin :: QueryAggregate -> AggregateFunction
 aggregateFunctionFromBuiltin aggregate =
@@ -63,18 +81,28 @@ expressionColumn expression = Column {
   }
 
 -- | Splits a syntax tree on its aggregates, leaving a placeholder variable
-getAggregates :: Expression -> (Expression, ArrayOf (QueryAggregate, Expression))
-getAggregates expression =
-  case expression of
-    ELiteral _ -> (expression, V.empty)
-    ERename x name -> case getAggregates x of
-      (continuation, aggregates) ->
-        (ERename continuation name, aggregates)
-    ECase _ _ -> error "getAggregates: Aggregates in case expressions unsupported"
-    EVariable _ -> (expression, V.empty)
+-- | Yields: An input transformer, an aggregate, and an output transformer
+splitAggregate :: Expression -> Maybe (Expression, QueryAggregate, Expression)
+splitAggregate expression =
+  let identity = EPlaceholder 0
+  in case expression of
+    ELiteral _ -> Nothing
+    ERename x name -> case splitAggregate x of
+      Just (continuation, aggregate, transform) ->
+        Just $ (ERename continuation name, aggregate, transform)
+      Nothing -> Nothing
+    ECase _ _ -> error "splitAggregate: Aggregates in case expressions unsupported"
+    EVariable _ -> Nothing
     EAggregate aggregate argument ->
-      (EPlaceholder 0, V.singleton (aggregate, argument))
-    EPlaceholder x -> (expression, V.empty)
+      Just $ (identity, aggregate, argument)
+    EPlaceholder x -> Nothing
+
+-- | Same as splitAggregate, but replaces non-aggregate expressions with a placeholder
+-- | that fails if aggregated.
+getAggregate :: Expression -> (Expression, QueryAggregate, Expression)
+getAggregate expression = case splitAggregate expression of
+  Just x -> x
+  Nothing -> (EPlaceholder 0, QAggFailIfAggregated, expression)
 
 hasAggregates :: Expression -> Bool
 hasAggregates expression =
@@ -108,8 +136,9 @@ evaluateOneExpression context expression = case expression of
       Nothing -> case otherwise of
         Just x -> evaluateOneExpression context x
         Nothing -> VNull
-  EVariable name -> lookup_value context name
+  EVariable name -> lookupVariable context name
   EAggregate _ _ -> error "evaluateOneExpression: Cannot evaluate an aggregate function over a single binding context"
+  EPlaceholder n -> lookupPlaceholder context n
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
@@ -122,7 +151,7 @@ transformStreamToBindings stream =
       nameValuePairs = map (V.zip names) $
                        map unwrapRecord $
                        streamRecords stream :: [ArrayOf (T.Text, Value) ]
-      bindingContexts = map (BindingContext . M.fromList . V.toList) nameValuePairs
+      bindingContexts = map (variablesToContext . M.fromList . V.toList) nameValuePairs
   in bindingContexts
 
 resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
@@ -144,22 +173,36 @@ evaluateRowWiseQuery environment query@(SingleQuery _ _ _) =
   in do
     bindingContexts <- resolveQueryBindings environment query
     let streamRecords = map (evaluateExpressions queryExpressions) bindingContexts
-    return Stream {
+    return $ Stream {
       streamHeader = streamHeader,
       streamRecords = streamRecords
       }
 
-unifyAggregates :: ArrayOf (Expression, ArrayOf(QueryAggregate, Expression)) -> (ArrayOf Expression, ArrayOf AggregateFunction)
-unifyAggregates = error "unifyAggregates: Unimplemented"
-
 getQueryPrimaryKey :: Query -> ArrayOf Expression
-getQueryPrimaryKey query = error "getQueryPrimaryKey: Unimplemented"
+getQueryPrimaryKey query = case queryGroupBy query of
+  Just x -> x
+  Nothing -> V.singleton $ ELiteral $ LBool True
 
-getRowAggregates :: ArrayOf Expression -> (ArrayOf Expression, ArrayOf AggregateFunction)
+getRowAggregates :: ArrayOf Expression -> (ArrayOf Expression, ArrayOf QueryAggregate, ArrayOf Expression)
 getRowAggregates expressions =
-  let splitExpressions = V.map getAggregates expressions
-      (continuations, aggregates) = unifyAggregates splitExpressions
-  in (continuations, aggregates)
+  let splits = V.map getAggregate expressions
+      continuations     = V.map (\(x,_,_) -> x) splits
+      aggregates        = V.map (\(_,x,_) -> x) splits
+      inputTransformers = V.map (\(_,_,x) -> x) splits
+  in (continuations, aggregates, inputTransformers)
+
+-- | Always a replacement function on each subtree of the original expression
+mapAst :: Expression -> (Expression -> Expression) -> Expression
+mapAst expression f =
+  let mapChildren :: Expression -> Expression
+      mapChildren parent = case expression of
+        ELiteral _ -> parent
+        ERename child name -> ERename (mapChildren child) name
+        ECase _ _ -> error "mapAst: Unsupported for case expressions"
+        EVariable name -> parent
+        EAggregate aggregate child -> EAggregate aggregate $ f child
+        EPlaceholder _ -> parent
+  in f $ mapChildren expression
 
 -- | Evaluates a query with aggregates over a primary key
 evaluateAggregateQuery :: Environment -> Query -> IO Stream
@@ -169,16 +212,23 @@ evaluateAggregateQuery environment query@(SingleQuery _ _ _) =
       groupByExpressions = getQueryPrimaryKey query
   in do
     bindingContexts <- resolveQueryBindings environment query
-    let (inputExpressions, aggregates) = getRowAggregates selectExpressions
+    let (continuations, aggregates, inputTransformers) = getRowAggregates selectExpressions
+    let aggregateFunctions = V.map aggregateFunctionFromBuiltin aggregates
     let bindAggregateInputs context =
           let primaryKey = evaluateExpressions groupByExpressions context
-              aggregateInputs = evaluateExpressions inputExpressions context
+              aggregateInputs = evaluateExpressions inputTransformers context
           in (primaryKey, aggregateInputs)
     let aggregateInputs = map bindAggregateInputs bindingContexts
-    let summarization = summarizeByKey aggregateInputs aggregates
+    let summarization = summarizeByKey aggregateInputs aggregateFunctions
+        finalizeValue :: Expression -> Value -> Value
+        finalizeValue expression value =
+          let context = placeholdersToContext $ V.singleton value
+          in evaluateOneExpression context expression
+        finalized :: M.Map PrimaryKey Record
+        finalized = M.map (\(Record vs) -> Record $ V.zipWith finalizeValue continuations vs) summarization
     return $ Stream {
       streamHeader = streamHeader,
-      streamRecords = M.elems summarization
+      streamRecords = M.elems finalized
       }
 
 evaluateSingleQuery :: Environment -> Query -> IO Stream

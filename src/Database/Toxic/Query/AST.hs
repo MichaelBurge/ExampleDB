@@ -9,10 +9,12 @@ type Condition = Expression
 data Literal =
     LBool Bool
   | LNull
+  | LValue Value
   deriving (Eq, Show)
 
 data QueryAggregate =
-  QAggBoolOr
+    QAggBoolOr
+  | QAggFailIfAggregated
   deriving (Eq, Show)
 
 data Expression =
