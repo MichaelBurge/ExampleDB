@@ -26,6 +26,7 @@ data Expression =
 
 
 data Query = SingleQuery {
+  queryGroupBy :: Maybe (ArrayOf Expression),
   queryProject :: ArrayOf Expression,
   querySource  :: Maybe Query
   } | SumQuery {
@@ -42,6 +43,7 @@ data Statement =
 
 singleton_statement :: Expression -> Statement
 singleton_statement expression = SQuery $ SingleQuery {
+  queryGroupBy = Nothing,
   queryProject = V.singleton expression,
   querySource = Nothing
   }

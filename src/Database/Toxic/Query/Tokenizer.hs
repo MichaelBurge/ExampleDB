@@ -24,6 +24,8 @@ data Token =
    | TkAll
    | TkFrom
    | TkNull
+   | TkGroup
+   | TkBy
 
   -- Symbols
    | TkStatementEnd -- ;
@@ -59,6 +61,8 @@ lexKeyword =
      <|> tryKeyword "all" TkAll
      <|> tryKeyword "from" TkFrom
      <|> tryKeyword "null" TkNull
+     <|> tryKeyword "group" TkGroup
+     <|> tryKeyword "by" TkBy
 
 lexIdentifier :: CharParser Token
 lexIdentifier =

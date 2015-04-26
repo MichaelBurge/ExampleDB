@@ -70,6 +70,15 @@ test_cross_join =
     TkStatementEnd
     ]
 
+test_multiple_items :: Assertion
+test_multiple_items =
+  assert_tokenizes "select true, true group by true, true" [
+    TkSelect,
+      TkTrue, TkSequence, TkTrue,
+    TkGroup, TkBy,
+      TkTrue, TkSequence, TkTrue
+    ]
+
 tokenizerTests :: Test.Framework.Test
 tokenizerTests =
   testGroup "Tokenizer" [
@@ -80,5 +89,6 @@ tokenizerTests =
     testCase "Case when when else" test_case_when_when_else,
     testCase "Union" test_union,
     testCase "Subquery" test_subquery,
-    testCase "Cross Join" test_cross_join
+    testCase "Cross Join" test_cross_join,
+    testCase "Multiple items" test_multiple_items
     ]

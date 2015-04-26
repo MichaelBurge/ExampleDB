@@ -138,7 +138,7 @@ resolveQueryBindings environment query =
 
 -- | Evaluates a query that has no aggregates
 evaluateRowWiseQuery :: Environment -> Query -> IO Stream
-evaluateRowWiseQuery environment query@(SingleQuery _ _) =
+evaluateRowWiseQuery environment query@(SingleQuery _ _ _) =
   let streamHeader     = queryColumns query
       queryExpressions = queryProject query :: ArrayOf Expression
   in do
@@ -163,7 +163,7 @@ getRowAggregates expressions =
 
 -- | Evaluates a query with aggregates over a primary key
 evaluateAggregateQuery :: Environment -> Query -> IO Stream
-evaluateAggregateQuery environment query@(SingleQuery _ _) =
+evaluateAggregateQuery environment query@(SingleQuery _ _ _) =
   let streamHeader = queryColumns query
       selectExpressions = queryProject query
       groupByExpressions = getQueryPrimaryKey query
@@ -182,7 +182,7 @@ evaluateAggregateQuery environment query@(SingleQuery _ _) =
       }
 
 evaluateSingleQuery :: Environment -> Query -> IO Stream
-evaluateSingleQuery environment query@(SingleQuery _ _) =
+evaluateSingleQuery environment query@(SingleQuery _ _ _) =
   if V.any hasAggregates $ queryProject query
   then evaluateAggregateQuery environment query
   else evaluateRowWiseQuery environment query     
@@ -219,7 +219,7 @@ evaluateProductQuery environment queries =
 evaluateQuery :: Environment -> Query -> IO Stream
 evaluateQuery environment query =
   case query of
-    SingleQuery _ _ -> evaluateSingleQuery environment query
+    SingleQuery _ _ _ -> evaluateSingleQuery environment query
     SumQuery QuerySumUnionAll queries ->
       evaluateUnionAllQuery environment queries
     ProductQuery queryFactors ->

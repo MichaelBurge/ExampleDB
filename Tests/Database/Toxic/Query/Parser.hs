@@ -16,9 +16,9 @@ import Test.QuickCheck
 import qualified Data.Vector as V
 
 assert_tokens_parse :: [ Token ] -> Statement -> Assertion
-assert_tokens_parse tokens expectedStatement = do
-  let actualStatement   = unsafeRunTokenParser tokens  
-  assertEqual "" expectedStatement actualStatement
+assert_tokens_parse tokens expectedStatement =
+  let actualStatement = unsafeRunTokenParser tokens  
+  in assertEqual "" expectedStatement actualStatement
   
 test_booleanSelect :: Assertion
 test_booleanSelect =
@@ -97,8 +97,10 @@ test_union =
            queryCombineOperation = QuerySumUnionAll,
            queryConstituentQueries = V.fromList [
              SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
+                           queryGroupBy = Nothing,
                            querySource = Nothing },
              SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False,
+                           queryGroupBy = Nothing,
                            querySource = Nothing }
            ]
          }
@@ -118,9 +120,11 @@ test_subquery =
         ]
       expectedStatement = SQuery $
         SingleQuery {
+          queryGroupBy = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ SingleQuery {
             queryProject = V.singleton $ ELiteral $ LBool False,
+            queryGroupBy = Nothing,
             querySource = Nothing
             }
           }
@@ -137,15 +141,18 @@ test_cross_join =
         ]
       expectedStatement = SQuery $
         SingleQuery {
+          queryGroupBy = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ ProductQuery {
             queryFactors = V.fromList [
                SingleQuery {
                   queryProject = V.singleton $ ELiteral $ LBool True,
+                  queryGroupBy = Nothing,
                   querySource = Nothing
                   },
                SingleQuery {
                  queryProject = V.singleton $ ELiteral $ LBool False,
+                 queryGroupBy = Nothing,
                  querySource = Nothing
                  }
                ]
@@ -163,9 +170,11 @@ test_variable =
         ]
       expectedStatement = SQuery $
         SingleQuery {
+          queryGroupBy = Nothing,
           queryProject = V.singleton $ EVariable "x",
           querySource = Just $ SingleQuery {
             queryProject = V.singleton $ ERename (ELiteral $ LBool True) "x",
+            queryGroupBy = Nothing,
             querySource = Nothing
             }
           }
@@ -189,6 +198,35 @@ test_bool_or =
       expectedStatement = singleton_statement $ EAggregate QAggBoolOr $ ELiteral $ LBool True
   in assert_tokens_parse tokens expectedStatement
 
+test_group_by :: Assertion
+test_group_by =
+  let tokens =
+        [
+          TkSelect,
+            TkTrue,
+          TkGroup, TkBy,
+            TkTrue,
+          TkStatementEnd  
+        ]
+      expectedStatement = SQuery SingleQuery {
+        queryProject = V.singleton $ ELiteral $ LBool True,
+        queryGroupBy = Just $ V.singleton $ ELiteral $ LBool True,
+        querySource = Nothing
+        }
+  in assert_tokens_parse tokens expectedStatement
+
+-- test_multiple_items :: Assertion
+-- test_multiple_items =
+--   let tokens =
+--         [
+--           TkSelect,
+--             TkTrue, TkSequence,
+--             TkTrue,
+--           TkGroup, TkBy,
+--             TkTrue, TkSequence,
+--             TkTrue
+          
+
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -202,6 +240,7 @@ parserTests =
     testCase "Cross Join" test_cross_join,
     testCase "Variable" test_variable,
     testCase "Null" test_null,
-    testCase "bool_or()" test_bool_or
+    testCase "bool_or()" test_bool_or,
+    testCase "Group by" test_group_by
     ]
   

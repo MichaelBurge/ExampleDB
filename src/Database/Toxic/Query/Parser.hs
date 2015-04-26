@@ -78,7 +78,14 @@ select_item =
   <|> rename_expression
 
 select_clause :: TokenParser (ArrayOf Expression)
-select_clause = V.fromList <$> many select_item
+select_clause = V.fromList <$> sepBy1 select_item (matchToken TkSequence)
+
+group_by_clause :: TokenParser (ArrayOf Expression)
+group_by_clause = do
+  matchToken TkGroup
+  matchToken TkBy
+  expressions <- V.fromList <$> sepBy1 expression (matchToken TkSequence)
+  return expressions
 
 subquery :: TokenParser Query
 subquery = matchToken TkOpen *> query <* matchToken TkClose
@@ -103,7 +110,12 @@ single_query :: TokenParser Query
 single_query = matchToken TkSelect *> do
   expressions <- select_clause
   source <- optionMaybe from_clause
-  return $ SingleQuery { queryProject = expressions, querySource = source }
+  groupBy <- optionMaybe group_by_clause
+  return $ SingleQuery {
+    queryGroupBy = groupBy,
+    queryProject = expressions,
+    querySource = source
+    }
 
 composite_query :: TokenParser Query
 composite_query =
