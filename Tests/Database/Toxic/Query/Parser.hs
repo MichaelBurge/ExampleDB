@@ -5,7 +5,6 @@ module Tests.Database.Toxic.Query.Parser (parserTests) where
 import Database.Toxic.Types
 import Database.Toxic.Query.AST
 import Database.Toxic.Query.Parser
-import Database.Toxic.Query.Tokenizer
 
 import Test.Framework
 import Test.Framework.Providers.HUnit (testCase)
@@ -13,85 +12,61 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.HUnit
 import Test.QuickCheck
 
+import qualified Data.Text as T
 import qualified Data.Vector as V
 
-assert_tokens_parse :: [ Token ] -> Statement -> Assertion
-assert_tokens_parse tokens expectedStatement =
-  let actualStatement = unsafeRunTokenParser tokens  
+assertQueryParses :: T.Text -> Statement -> Assertion
+assertQueryParses text expectedStatement =
+  let actualStatement = unsafeRunQueryParser text
   in assertEqual "" expectedStatement actualStatement
   
 test_booleanSelect :: Assertion
 test_booleanSelect =
-  let tokens            = [ TkSelect, TkTrue, TkStatementEnd ]
+  let query             = "select true;"
       literalTrue       = ELiteral $ LBool True
       expectedStatement = singleton_statement literalTrue
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_rename :: Assertion
 test_rename =
-  let tokens =
-        [ TkSelect, TkTrue, TkRename, TkIdentifier "example", TkStatementEnd ]
+  let query = "select true as example;"
       expectedExpression = ERename (ELiteral $ LBool True) "example"
       expectedStatement = singleton_statement expectedExpression
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_case_when :: Assertion
 test_case_when =
-  let tokens =
-        [ TkSelect, TkCase, TkWhen, TkTrue, TkThen, TkFalse, TkEnd, TkStatementEnd ]
+  let query = "select case when true then false end;"
       expectedCondition  = ELiteral $ LBool True
       expectedResult     = ELiteral $ LBool False
       expectedCase       = (expectedCondition, expectedResult)
       expectedExpression = ECase (V.singleton expectedCase) Nothing
       expectedStatement  = singleton_statement expectedExpression
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_case_when_else :: Assertion
 test_case_when_else =
-  let tokens =
-        [
-          TkSelect,
-            TkCase,
-              TkWhen, TkTrue, TkThen, TkTrue,
-              TkElse, TkFalse,
-            TkEnd,
-            TkStatementEnd
-        ]
+  let query = "select case when true then true else false end;"
       expectedCondition  = (ELiteral $ LBool True, ELiteral $ LBool True)
       expectedOtherwise  = Just $ ELiteral $ LBool False
       expectedExpression = ECase (V.singleton expectedCondition) expectedOtherwise
       expectedStatement  = singleton_statement expectedExpression
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_case_when_when_else :: Assertion
 test_case_when_when_else =
-  let tokens =
-        [
-          TkSelect,
-            TkCase,
-              TkWhen, TkTrue, TkThen, TkTrue,
-              TkWhen, TkFalse, TkThen, TkTrue,
-              TkElse, TkFalse,
-            TkEnd,
-            TkStatementEnd
-        ]
+  let query = "select case when true then true when false then true else false end;"
       expectedCondition1 = (ELiteral $ LBool True, ELiteral $ LBool True)
       expectedCondition2 = (ELiteral $ LBool False, ELiteral $ LBool True)
       expectedOtherwise  = Just $ ELiteral $ LBool False
       expectedConditions = V.fromList [ expectedCondition1, expectedCondition2 ]
       expectedExpression = ECase expectedConditions expectedOtherwise
       expectedStatement  = singleton_statement expectedExpression
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_union :: Assertion
 test_union =
-  let tokens =
-        [
-          TkSelect, TkTrue,
-          TkUnion, TkAll,
-          TkSelect, TkFalse,
-          TkStatementEnd
-        ]
+  let query = "select true union all select false;"
       expectedStatement = SQuery $
         SumQuery {
            queryCombineOperation = QuerySumUnionAll,
@@ -104,20 +79,11 @@ test_union =
                            querySource = Nothing }
            ]
          }
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_subquery :: Assertion
 test_subquery =
-  let tokens =
-        [
-          TkSelect,
-            TkTrue,
-          TkFrom, TkOpen,
-            TkSelect,
-              TkFalse,
-          TkClose,
-          TkStatementEnd
-        ]
+  let query = "select true from ( select false )"
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
@@ -128,17 +94,11 @@ test_subquery =
             querySource = Nothing
             }
           }
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_cross_join :: Assertion
 test_cross_join =
-  let tokens =
-        [
-          TkSelect, TkTrue, TkFrom,
-          TkOpen, TkSelect, TkTrue, TkClose, TkSequence,
-          TkOpen, TkSelect, TkFalse, TkClose,
-          TkStatementEnd
-        ]
+  let query = "select true from (select true), (select false);"
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
@@ -158,16 +118,11 @@ test_cross_join =
                ]
             }
           }
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_variable :: Assertion
 test_variable =
-  let tokens =
-        [
-          TkSelect, TkIdentifier "x", TkFrom,
-          TkOpen, TkSelect, TkTrue, TkRename, TkIdentifier "x", TkClose,
-          TkStatementEnd
-        ]
+  let query = "select x from (select true as x);"
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
@@ -178,42 +133,29 @@ test_variable =
             querySource = Nothing
             }
           }
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_null :: Assertion
 test_null =
-  let tokens =
-        [
-          TkSelect, TkNull, TkStatementEnd
-        ]
+  let query = "select null;"
       expectedStatement = singleton_statement $ ELiteral LNull
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_bool_or :: Assertion
 test_bool_or =
-  let tokens =
-        [
-          TkSelect, TkIdentifier "bool_or", TkOpen, TkTrue, TkClose, TkStatementEnd
-        ]
+  let query = "select bool_or(true);"
       expectedStatement = singleton_statement $ EAggregate QAggBoolOr $ ELiteral $ LBool True
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 test_group_by :: Assertion
 test_group_by =
-  let tokens =
-        [
-          TkSelect,
-            TkTrue,
-          TkGroup, TkBy,
-            TkTrue,
-          TkStatementEnd  
-        ]
+  let query = "select true group by true;"
       expectedStatement = SQuery SingleQuery {
         queryProject = V.singleton $ ELiteral $ LBool True,
         queryGroupBy = Just $ V.singleton $ ELiteral $ LBool True,
         querySource = Nothing
         }
-  in assert_tokens_parse tokens expectedStatement
+  in assertQueryParses query expectedStatement
 
 -- test_multiple_items :: Assertion
 -- test_multiple_items =

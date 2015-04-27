@@ -19,8 +19,7 @@ import Test.QuickCheck
 
 assertQueryResults :: Environment -> T.Text -> Stream -> Assertion
 assertQueryResults environment query expectedStream = do
-  let tokens = unsafeRunTokenLexer query
-  let statement = unsafeRunTokenParser tokens
+  let statement = unsafeRunQueryParser query
   actualStream <- execute environment statement
   assertEqual "assertQueryResults" expectedStream actualStream
 
@@ -101,6 +100,27 @@ test_null =
       expectedStream = singleton_stream expectedColumn VNull
   in assertQueryResults nullEnvironment query expectedStream
 
+test_union_rename :: Assertion
+test_union_rename =
+  let query = "select true as x union all select false;"
+      expectedColumn = Column { columnName = "x", columnType = TBool }
+      expectedStream = single_column_stream expectedColumn [ VBool True, VBool False ]
+  in assertQueryResults nullEnvironment query expectedStream
+
+test_subquery_union :: Assertion
+test_subquery_union =
+  let query = "select true from (select false as x union all select true);"
+      expectedColumn = Column { columnName = "literal", columnType = TBool }
+      expectedStream = single_column_stream expectedColumn [ VBool True, VBool True ]
+  in assertQueryResults nullEnvironment query expectedStream
+
+test_aggregate :: Assertion
+test_aggregate =
+  let query = "select bool_or(x) from (select false as x union all select true);"
+      expectedColumn = Column { columnName = "bool_or", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool True
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -114,5 +134,8 @@ exampleQueriesTests =
     testCase "Subquery" test_subquery,
     testCase "Cross Join" test_cross_join,
     testCase "Subquery/cross-join cardinality" test_subquery_cross_join_cardinality,
-    testCase "Null" test_null
+    testCase "Null" test_null,
+    testCase "Union rename" test_union_rename,
+    testCase "Aggregate" test_aggregate,
+    testCase "Subquery Union" test_subquery_union
     ]

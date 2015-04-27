@@ -4,9 +4,8 @@ module Database.Toxic.Query.Parser where
 
 import Database.Toxic.Types
 import Database.Toxic.Query.AST
-import Database.Toxic.Query.Tokenizer
 
-import Control.Applicative ((<$>), (*>), (<*))
+import Control.Applicative ((<$>), (*>), (<*), (<*>))
 import Control.Monad
 import Data.Monoid
 import qualified Data.Text as T
@@ -14,100 +13,102 @@ import qualified Data.Vector as V
 import Text.Parsec
 import Text.Parsec.Combinator
 
-type TokenParser a = Parsec [Token] () a
+type CharParser a = Parsec String () a
 
-matchToken :: Token -> TokenParser Token
-matchToken token = tokenPrim show ignorePosition is_token
-  where
-    is_token x | x == token = Just token
-    is_token _ = Nothing
+identifier :: CharParser T.Text
+identifier =
+  let nondigit = letter <|> char '_'
+      allowedChar = nondigit <|> digit
+      chars = (:) <$> nondigit <*> many allowedChar
+  in T.pack <$> chars <* spaces
 
-identifier :: TokenParser T.Text
-identifier = tokenPrim show ignorePosition is_token
-  where
-    is_token token@(TkIdentifier x) = Just x
-    is_token _ = Nothing
+keyword :: String -> CharParser ()
+keyword text = try ( string text *> spaces *> return ())
 
-literal :: TokenParser Literal
+union_all :: CharParser ()
+union_all = keyword "union" *> keyword "all"
+
+literal :: CharParser Literal
 literal =
-      (matchToken TkTrue *> return (LBool True))
-  <|> (matchToken TkFalse *> return (LBool False))
-  <|> (matchToken TkNull *> return LNull)
+  let true = keyword "true" *> return (LBool True)
+      false = keyword "false" *> return (LBool False)
+      null = keyword "null" *> return LNull
+  in true <|> false <|> null
 
-case_condition :: TokenParser (Condition, Expression)
+case_condition :: CharParser (Condition, Expression)
 case_condition = do
-  matchToken TkWhen
+  keyword "when"
   condition <- expression
-  matchToken TkThen
+  keyword "then"
   result <- expression
   return (condition, result)
 
-case_else :: TokenParser Expression
-case_else = matchToken TkElse *> expression
+case_else :: CharParser Expression
+case_else = keyword "else" *> expression
 
-case_when_expression :: TokenParser Expression
+case_when_expression :: CharParser Expression
 case_when_expression = do
-  matchToken TkCase
+  keyword "case"
   conditions <- many $ case_condition
   else_case <- optionMaybe case_else
-  matchToken TkEnd
+  keyword "end"
   return $ ECase (V.fromList conditions) else_case
-
-rename_expression :: TokenParser Expression
-rename_expression = do
-  original <- expression
-  new_name <- rename_clause
-  return $ ERename original new_name
-
-variable :: TokenParser Expression
+  
+variable :: CharParser Expression
 variable = EVariable <$> identifier
 
-expression :: TokenParser Expression
+expression :: CharParser Expression
 expression =
         try(ELiteral <$> literal)
     <|> case_when_expression
     <|> try function
     <|> variable
 
-rename_clause :: TokenParser T.Text
-rename_clause = matchToken TkRename *> identifier
+rename_clause :: CharParser T.Text
+rename_clause = keyword "as" *> identifier
+                <?> "Bad identifier in rename clause"
 
-select_item :: TokenParser Expression
-select_item =
-      try (expression <* notFollowedBy rename_clause)
-  <|> rename_expression
+select_item :: CharParser Expression
+select_item = do 
+  x <- expression
+  rename <- optionMaybe rename_clause
+  return $ case rename of
+    Just name -> ERename x name
+    Nothing -> x
 
-select_clause :: TokenParser (ArrayOf Expression)
-select_clause = V.fromList <$> sepBy1 select_item (matchToken TkSequence)
+select_clause :: CharParser (ArrayOf Expression)
+select_clause = do
+  keyword "select"
+  V.fromList <$> sepBy1 select_item (keyword ",")
 
-group_by_clause :: TokenParser (ArrayOf Expression)
+group_by_clause :: CharParser (ArrayOf Expression)
 group_by_clause = do
-  matchToken TkGroup
-  matchToken TkBy
-  expressions <- V.fromList <$> sepBy1 expression (matchToken TkSequence)
+  keyword "group"
+  keyword "by"
+  expressions <- V.fromList <$> sepBy1 expression (keyword ",")
   return expressions
 
-subquery :: TokenParser Query
-subquery = matchToken TkOpen *> query <* matchToken TkClose
+subquery :: CharParser Query
+subquery = keyword "(" *> query <* keyword ")"
 
-function :: TokenParser Expression
+function :: CharParser Expression
 function = do
   name <- identifier
-  matchToken TkOpen
+  char '('
   argument <- expression
-  matchToken TkClose
+  char ')'
   case name of
     "bool_or" -> return $ EAggregate QAggBoolOr argument
     _ -> fail $ T.unpack $ "Unknown function " <> name
   
 
-from_clause :: TokenParser Query
-from_clause = matchToken TkFrom *> (
-  try product_query <|> try subquery
-  )
+from_clause :: CharParser Query
+from_clause = do
+  keyword "from"
+  try product_query <|> subquery
 
-single_query :: TokenParser Query
-single_query = matchToken TkSelect *> do
+single_query :: CharParser Query
+single_query = do
   expressions <- select_clause
   source <- optionMaybe from_clause
   groupBy <- optionMaybe group_by_clause
@@ -116,40 +117,39 @@ single_query = matchToken TkSelect *> do
     queryProject = expressions,
     querySource = source
     }
-
-composite_query :: TokenParser Query
+    
+composite_query :: CharParser Query
 composite_query =
   let one_or_more = V.fromList <$>
-                    sepBy1 single_query (matchToken TkUnion *> matchToken TkAll)
+                    sepBy1 single_query union_all
   in do
     composite <- one_or_more
-    when (V.length composite == 1) $ fail "A single composite query is just a single query"
-    return $ SumQuery QuerySumUnionAll composite
+    return $ if V.length composite == 1
+             then V.head composite
+             else SumQuery QuerySumUnionAll composite
 
-product_query :: TokenParser Query
+product_query :: CharParser Query
 product_query = 
   let one_or_more = V.fromList <$>
-                    sepBy1 subquery (matchToken TkSequence)
+                    sepBy1 subquery (keyword ",")
   in do
     subqueries <- one_or_more
     when (V.length subqueries == 1) $ fail "A single product query is just a single query"
     return $ ProductQuery { queryFactors = subqueries }
 
-query :: TokenParser Query
-query = try composite_query <|> single_query
+query :: CharParser Query
+query = composite_query <?> "Expected a query or union of queries"
 
-statement :: TokenParser Statement
+statement :: CharParser Statement
 statement = do
   q <- query
-  matchToken TkStatementEnd
+  optionMaybe $ char ';'
   return $ SQuery q
 
-runTokenParser :: [Token] -> Either ParseError Statement
-runTokenParser tokens = parse statement "runTokenParser" tokens
+runQueryParser :: T.Text -> Either ParseError Statement
+runQueryParser text = parse statement "runTokenParser" $ T.unpack text
 
-unsafeRunTokenParser :: [Token] -> Statement
-unsafeRunTokenParser tokens = case runTokenParser tokens of
+unsafeRunQueryParser :: T.Text -> Statement
+unsafeRunQueryParser text = case runQueryParser text of
   Left parseError -> error $ show parseError
   Right statement -> statement
-
-ignorePosition pos _ _ = pos
