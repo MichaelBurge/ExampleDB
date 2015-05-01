@@ -127,6 +127,23 @@ test_sum =
       expectedStream = singleton_stream expectedColumn $ VInt 2
   in assertQueryResults nullEnvironment query expectedStream
 
+test_sum_partitions :: Assertion
+test_sum_partitions =
+  let query = "select x, sum(1) from (select false as x union all select true union all select true union all select true union all select false union all select null) group by x;"
+      expectedHeader = V.fromList [
+        Column { columnName = "x", columnType = TUnknown },
+        Column { columnName = "sum", columnType = TInt }
+        ]
+      expectedStream = Stream {
+        streamHeader = expectedHeader,
+        streamRecords = [
+          Record $ V.fromList [ VBool False, VInt 2 ],
+          Record $ V.fromList [ VBool True, VInt 3 ],
+          Record $ V.fromList [ VNull, VInt 1 ]
+          ]
+        }
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -144,5 +161,6 @@ exampleQueriesTests =
     testCase "Union rename" test_union_rename,
     testCase "Aggregate" test_aggregate,
     testCase "Subquery Union" test_subquery_union,
-    testCase "Sum" test_sum
+    testCase "Sum" test_sum,
+    testCase "Sum partitions" test_sum_partitions
     ]

@@ -28,3 +28,6 @@ bool_or = simpleFoldAggregate "bool_or" operatorOr $ VBool False
 
 sum :: AggregateFunction
 sum = simpleFoldAggregate "sum" operatorPlus $ VInt 0
+
+fail_if_aggregated :: AggregateFunction
+fail_if_aggregated = simpleFoldAggregate "fail_if_aggregated" operatorFailUnlessNull VNull

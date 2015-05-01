@@ -27,3 +27,13 @@ operatorPlus = arity2 $ \a b ->
   case (a, b) of
     (VInt x, VInt y) -> VInt $ x + y
     _ -> error $ "sum: Incorrect types"
+
+-- TODO: This operator mixes the 'null as uninitialized' with 'null as SQL value'.
+-- There should probably be a separate 'unitialized' value.
+operatorFailUnlessNull :: Value -> Value -> Value
+operatorFailUnlessNull a b =
+  case (a, b) of
+    (x, VNull) -> x
+    (x, y) | x == y-> x
+    x -> error $
+         "operatorFailUnlessNull: Attempted to combine non-null values " ++ show x

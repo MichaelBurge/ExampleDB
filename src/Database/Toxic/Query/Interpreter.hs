@@ -59,6 +59,7 @@ aggregateFunctionFromBuiltin :: QueryAggregate -> AggregateFunction
 aggregateFunctionFromBuiltin aggregate =
   case aggregate of
     QAggBoolOr -> Agg.bool_or
+    QAggFailIfAggregated -> Agg.fail_if_aggregated
     QAggSum -> Agg.sum
 
 expressionType :: Expression -> Type

@@ -183,18 +183,6 @@ test_integer_literal =
       expectedStatement = singleton_statement $ ELiteral $ LInt 5
   in assertQueryParses query expectedStatement
 
--- test_multiple_items :: Assertion
--- test_multiple_items =
---   let tokens =
---         [
---           TkSelect,
---             TkTrue, TkSequence,
---             TkTrue,
---           TkGroup, TkBy,
---             TkTrue, TkSequence,
---             TkTrue
-          
-
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
