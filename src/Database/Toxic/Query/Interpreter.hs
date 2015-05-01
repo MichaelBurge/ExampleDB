@@ -64,6 +64,8 @@ aggregateFunctionFromBuiltin aggregate =
     QAggFailIfAggregated -> Agg.fail_if_aggregated
     QAggSum -> Agg.sum
 
+
+
 unopName :: Unop -> T.Text
 unopName UnopNot = "not"
 
@@ -75,12 +77,24 @@ binopType BinopPlus = TInt
 binopType BinopMinus = TInt
 binopType BinopTimes = TInt
 binopType BinopDividedBy = TInt
+binopType BinopGreaterOrEqual = TBool
+binopType BinopGreater = TBool
+binopType BinopLess = TBool
+binopType BinopLessOrEqual = TBool
+binopType BinopEqual = TBool
+binopType BinopUnequal = TBool
 
 binopName :: Binop -> T.Text
 binopName BinopPlus = "plus"
 binopName BinopMinus = "minus"
 binopName BinopTimes = "times"
 binopName BinopDividedBy = "div"
+binopName BinopGreaterOrEqual = "greaterOrEqual"
+binopName BinopGreater = "greater"
+binopName BinopLess = "less"
+binopName BinopLessOrEqual = "lessOrEqual"
+binopName BinopEqual = "equal"
+binopName BinopUnequal = "unequal"
 
 expressionType :: Expression -> Type
 expressionType expression = case expression of
@@ -174,6 +188,13 @@ applyBinop BinopPlus = operatorPlus
 applyBinop BinopMinus = operatorMinus
 applyBinop BinopTimes = operatorTimes
 applyBinop BinopDividedBy = operatorDividedBy
+applyBinop BinopGreaterOrEqual = operatorGreaterOrEqual
+applyBinop BinopGreater = operatorGreater
+applyBinop BinopLess = operatorLess
+applyBinop BinopLessOrEqual = operatorLessOrEqual
+applyBinop BinopEqual = operatorEqual
+applyBinop BinopUnequal = operatorUnequal
+
 
 -- | Evaluates 
 evaluateOneExpression :: BindingContext -> Expression -> Value

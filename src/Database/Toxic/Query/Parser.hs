@@ -7,6 +7,7 @@ import Database.Toxic.Query.AST
 
 import Control.Applicative ((<$>), (*>), (<*), (<*>))
 import Control.Monad
+import Data.List (nub)
 import Data.Monoid
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -18,6 +19,9 @@ import qualified Text.Parsec.Token as P
 
 type CharParser a = Parsec String () a
 
+reservedOperators = ["<>", "*","+",">",">=","=","<=","<"]
+reservedOperatorCharacters = nub $ concat reservedOperators
+
 sqlLanguageDef = P.LanguageDef {
   P.commentStart = "",
   P.commentEnd = "",
@@ -25,10 +29,10 @@ sqlLanguageDef = P.LanguageDef {
   P.nestedComments = False,
   P.identStart = letter <|> char '_',
   P.identLetter = alphaNum <|> char '_',
-  P.opStart = oneOf "+",
-  P.opLetter = oneOf "",
+  P.opStart = oneOf $ reservedOperatorCharacters,
+  P.opLetter = oneOf $ reservedOperatorCharacters,
   P.reservedNames = [],
-  P.reservedOpNames = [],
+  P.reservedOpNames = reservedOperators,
   P.caseSensitive = False
   }
 
@@ -51,7 +55,15 @@ operator_table =
       mkBinop name binop = binary name (EBinop binop) AssocLeft
   in [ [ mkUnop "not" UnopNot ],
        [ mkBinop "*" BinopTimes, mkBinop "/" BinopDividedBy ],
-       [ mkBinop "+" BinopPlus, mkBinop "-" BinopMinus ]
+       [ mkBinop "+" BinopPlus, mkBinop "-" BinopMinus ],
+       [
+         mkBinop ">=" BinopGreaterOrEqual,
+         mkBinop ">" BinopGreater,
+         mkBinop "<" BinopLess,
+         mkBinop "<=" BinopLessOrEqual,
+         mkBinop "=" BinopEqual,
+         mkBinop "<>" BinopUnequal
+       ]
      ]
 
 binary name fun assoc = Infix (operator name *> return fun) assoc
@@ -97,18 +109,6 @@ not_expression = do
   
 variable :: CharParser Expression
 variable = EVariable <$> identifier
-
-binop :: CharParser Binop
-binop = operator "+" *> return BinopPlus
-
-binop_expression :: CharParser Expression
-binop_expression = do
-  (x1, op) <- try $ do
-    x1 <- expression
-    op <- binop
-    return (x1, op)
-  x2 <- expression
-  return $ EBinop op x1 x2
 
 term :: CharParser Expression
 term =

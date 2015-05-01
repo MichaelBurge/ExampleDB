@@ -1,5 +1,7 @@
 module Database.Toxic.Operators where
 
+import Control.Applicative
+
 import Database.Toxic.Types
 
 valueType :: Value -> Type
@@ -21,43 +23,48 @@ arity2 f a b =
     (_, VNull) -> VNull
     _ -> f a b
 
-operatorNot :: Value -> Value
-operatorNot = arity1 $ \a ->
-  case a of
-    VBool x -> VBool $ not x
-    _ -> error $ "operatorNot: Incorrect type"
+packBool :: Maybe Bool -> Value
+packBool (Just x) = VBool x
+packBool Nothing = VNull
 
-operatorOr :: Value -> Value -> Value
-operatorOr = arity2 $ \a b ->
-  case (a, b) of
-    (VBool x, VBool y) -> VBool $ x || y
-    -- TODO: Switch to dedicated error type for this
-    _ -> error $ "operatorOr: Incorrect types"
+unpackBool :: Value -> Maybe Bool
+unpackBool x = case x of
+  VBool y -> Just y
+  _ -> Nothing
 
-operatorPlus :: Value -> Value -> Value
-operatorPlus = arity2 $ \a b ->
-  case (a, b) of
-    (VInt x, VInt y) -> VInt $ x + y
-    _ -> error $ "operatorPlus: Incorrect types"
+packInt :: Maybe Int -> Value
+packInt (Just x) = VInt x
+packInt Nothing = VNull
 
-operatorMinus :: Value -> Value -> Value
-operatorMinus = arity2 $ \a b ->
-  case (a, b) of
-    (VInt x, VInt y) -> VInt $ x - y
-    _ -> error $ "OperatorMinus: Incorrect types"
+unpackInt :: Value -> Maybe Int
+unpackInt (VInt x) = Just x
+unpackInt _ = Nothing
 
-operatorTimes :: Value -> Value -> Value
-operatorTimes = arity2 $ \a b ->
-  case (a, b) of
-    (VInt x, VInt y) -> VInt $ x * y
-    _ -> error $ "operatorTimes: Incorrect types"
-  
-operatorDividedBy :: Value -> Value -> Value
-operatorDividedBy = arity2 $ \a b ->
-  case (a, b) of
-    (VInt x, VInt 0) -> VNull
-    (VInt x, VInt y) -> VInt $ x `div` y
-    _ -> error $ "operatorDividedBy: Incorrect types"
+packValue :: Maybe Value -> Value
+packValue (Just x) = x
+packValue Nothing = VNull
+
+unpackValue :: Value -> Maybe Value
+unpackValue x = Just x
+
+wrapHaskellUnop :: (a -> a) -> (Value -> Maybe a) -> (Maybe a -> Value) -> (Value -> Value)
+wrapHaskellUnop f unpack pack value = pack $ (f <$> unpack value)
+
+wrapHaskellBinop :: (a -> a -> b) -> (Value -> Maybe a) -> (Maybe b -> Value) -> (Value -> Value -> Value)
+wrapHaskellBinop f unpack pack x1 x2 = pack $ (f <$> unpack x1 <*> unpack x2)
+
+operatorNot = wrapHaskellUnop not unpackBool packBool
+operatorOr = wrapHaskellBinop (||) unpackBool packBool
+operatorPlus = wrapHaskellBinop (+) unpackInt packInt
+operatorMinus = wrapHaskellBinop (-) unpackInt packInt
+operatorTimes = wrapHaskellBinop (*) unpackInt packInt
+operatorDividedBy = wrapHaskellBinop div unpackInt packInt
+operatorUnequal = wrapHaskellBinop (/=) unpackValue packBool
+operatorGreater = wrapHaskellBinop (>) unpackValue packBool
+operatorGreaterOrEqual = wrapHaskellBinop (>=) unpackValue packBool
+operatorEqual = wrapHaskellBinop (==) unpackValue packBool
+operatorLessOrEqual = wrapHaskellBinop (<=) unpackValue packBool
+operatorLess = wrapHaskellBinop (<) unpackValue packBool
 
 -- TODO: This operator mixes the 'null as uninitialized' with 'null as SQL value'.
 -- There should probably be a separate 'unitialized' value.

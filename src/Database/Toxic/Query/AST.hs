@@ -28,6 +28,12 @@ data Binop =
   | BinopMinus
   | BinopTimes
   | BinopDividedBy
+  | BinopGreaterOrEqual
+  | BinopGreater
+  | BinopEqual
+  | BinopLessOrEqual
+  | BinopLess
+  | BinopUnequal
   deriving (Eq, Show)
 
 data Expression =

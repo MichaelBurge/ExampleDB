@@ -176,6 +176,23 @@ test_plus =
       expectedStream = singleton_stream expectedColumn $ VInt 2
   in assertQueryResults nullEnvironment query expectedStream
 
+test_boolean_binops :: Assertion
+test_boolean_binops =
+  let query = "select 1 > 1, 1 >= 1, 1 = 1, 1 < 1, 1 <= 1, 1 <> 1;"
+      expectedColumn name = Column { columnName = name, columnType = TBool }
+      expectedStream = Stream {
+        streamHeader = V.fromList [
+           expectedColumn "greater",
+           expectedColumn "greaterOrEqual",
+           expectedColumn "equal",
+           expectedColumn "less",
+           expectedColumn "lessOrEqual",
+           expectedColumn "unequal"
+           ],
+        streamRecords = [ Record $ V.fromList $ map VBool [ False, True, True, False, True, False ] ]
+        }
+  in assertQueryResults nullEnvironment query expectedStream
+
 test_numeric_binops :: Assertion
 test_numeric_binops =
   let query = "select 1 + 1, 1 - 1, 1 * 1, 1 / 1;"
@@ -213,5 +230,6 @@ exampleQueriesTests =
     testCase "Order by" test_order_by,
     testCase "Not" test_not,
     testCase "Plus" test_plus,
-    testCase "Binops" test_numeric_binops
+    testCase "Numeric Binops" test_numeric_binops,
+    testCase "Boolean Binops" test_boolean_binops
     ]
