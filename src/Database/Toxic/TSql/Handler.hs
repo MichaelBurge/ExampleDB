@@ -26,7 +26,7 @@ connect = do
   mySocket <- lift $ socket family socketType protocolNumber
   modify (& handleSocket .~ mySocket)
 
-startupMessage :: Message
+startupMessage :: StartupMessage
 startupMessage = StartupMessage {
   startupMessageParameters = V.fromList [
      ("user", "mburge"),

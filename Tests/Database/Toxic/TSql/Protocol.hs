@@ -5,6 +5,7 @@ module Tests.Database.Toxic.TSql.Protocol (protocolTests) where
 import Database.Toxic.TSql.Protocol
 
 import Data.Binary
+import Data.Binary.Get
 import Data.Binary.Put
 import Data.ByteString.Char8
 import qualified Data.ByteString as BS
@@ -28,11 +29,15 @@ test_startup_message =
            ]
         }
       -- Observed from strace'ing psql
-      expectedSerialized :: BS.ByteString
+      expectedSerialized :: BSL.ByteString
       expectedSerialized = "\0\0\0P\0\3\0\0user\0mburge\0database\0mburge\0application_name\0psql\0client_encoding\0UTF8\0\0"
-      actualSerialized :: BS.ByteString
-      actualSerialized = BSL.toStrict $ runPut $ put message
-  in assertEqual "" expectedSerialized actualSerialized
+      actualSerialized :: BSL.ByteString
+      actualSerialized = runPut $ put message
+      unserialized :: StartupMessage
+      unserialized = runGet get actualSerialized
+  in do
+     assertEqual "put" expectedSerialized actualSerialized
+     assertEqual "get" message unserialized
 
 protocolTests =
   testGroup "Protocol" [
