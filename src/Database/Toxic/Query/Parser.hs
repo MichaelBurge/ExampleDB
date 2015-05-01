@@ -72,6 +72,12 @@ case_when_expression = do
   else_case <- optionMaybe case_else
   keyword "end"
   return $ ECase (V.fromList conditions) else_case
+
+not_expression :: CharParser Expression
+not_expression = do
+  keyword "not"
+  x <- expression
+  return $ EUnop UnopNot x
   
 variable :: CharParser Expression
 variable = EVariable <$> identifier
@@ -80,6 +86,7 @@ expression :: CharParser Expression
 expression =
         try(ELiteral <$> literal)
     <|> case_when_expression
+    <|> not_expression
     <|> try function
     <|> variable
 

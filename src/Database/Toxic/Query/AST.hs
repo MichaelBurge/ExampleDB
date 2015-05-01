@@ -19,6 +19,10 @@ data QueryAggregate =
   | QAggFailIfAggregated
   deriving (Eq, Show)
 
+data Unop =
+  UnopNot
+  deriving (Eq, Show)
+
 data Expression =
     ELiteral Literal
   | ERename Expression T.Text
@@ -26,6 +30,7 @@ data Expression =
   | EVariable T.Text
   | EAggregate QueryAggregate Expression
   | EPlaceholder Int
+  | EUnop Unop Expression
   deriving (Eq, Show)
 
 

@@ -66,6 +66,7 @@ aggregateFunctionFromBuiltin aggregate =
 
 expressionType :: Expression -> Type
 expressionType expression = case expression of
+  EUnop UnopNot x -> TBool
   ELiteral x -> literalType x
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
@@ -75,6 +76,7 @@ expressionType expression = case expression of
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
+  EUnop UnopNot _ -> "not"
   ELiteral _ -> "literal"
   ERename _ x -> x
   ECase _ _ -> "case"
@@ -104,6 +106,10 @@ splitAggregate expression =
     EAggregate aggregate argument ->
       Just $ (identity, aggregate, argument)
     EPlaceholder x -> Nothing
+    EUnop unop x -> case splitAggregate x of
+      Just (continuation, aggregate, transform) ->
+        Just $ (EUnop unop continuation, aggregate, transform)
+      Nothing -> Nothing
 
 -- | Same as splitAggregate, but replaces non-aggregate expressions with a placeholder
 -- | that fails if aggregated.
@@ -117,6 +123,7 @@ hasAggregates expression =
   case expression of
     ECase _ _ -> False
     ELiteral _ -> False
+    EUnop _ x -> hasAggregates x
     ERename x _ -> hasAggregates x
     EAggregate _ _ -> True
     EPlaceholder _ -> False
@@ -131,6 +138,11 @@ evaluateLiteral literal = case literal of
   LInt x -> VInt $ fromInteger x
   LNull -> VNull
   LValue x -> x
+
+applyUnop :: Unop -> Value -> Value
+applyUnop _ VNull = VNull
+applyUnop UnopNot (VBool x) = VBool (not x)
+applyUnop UnopNot _ = error "applyUnop: Type error"
 
 -- | Evaluates 
 evaluateOneExpression :: BindingContext -> Expression -> Value
@@ -154,7 +166,8 @@ evaluateOneExpression context expression = case expression of
        aggregateAccumulate aggregate innerResult $
        aggregateInitialize aggregate
   EPlaceholder n -> lookupPlaceholder context n
-
+  EUnop unop inner -> applyUnop unop $ evaluateOneExpression context inner
+  
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
   Record $ V.map (evaluateOneExpression context) expressions
@@ -235,6 +248,7 @@ mapAst expression f =
         EVariable name -> parent
         EAggregate aggregate child -> EAggregate aggregate $ f child
         EPlaceholder _ -> parent
+        EUnop unop x -> EUnop unop (mapChildren x)
   in f $ mapChildren expression
 
 -- | Evaluates a query with aggregates over a primary key

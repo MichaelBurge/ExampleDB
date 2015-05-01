@@ -162,6 +162,13 @@ test_order_by =
         }
   in assertQueryResults nullEnvironment query expectedStream
 
+test_not :: Assertion
+test_not =
+  let query = "select not true;"
+      expectedColumn = Column { columnName = "not", columnType = TBool }
+      expectedStream = singleton_stream expectedColumn $ VBool False
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -181,5 +188,6 @@ exampleQueriesTests =
     testCase "Subquery Union" test_subquery_union,
     testCase "Sum" test_sum,
     testCase "Sum partitions" test_sum_partitions,
-    testCase "Order by" test_order_by
+    testCase "Order by" test_order_by,
+    testCase "Not" test_not
     ]
