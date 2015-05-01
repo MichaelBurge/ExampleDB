@@ -15,7 +15,8 @@ data Literal =
 
 data QueryAggregate =
     QAggBoolOr
-  | QAggFailIfAggregated
+  | QAggSum
+  | QAggFailIfAggregated -- TODO
   deriving (Eq, Show)
 
 data Expression =

@@ -2,7 +2,7 @@
 
 module Database.Toxic.Query.Interpreter where
 
-import Database.Toxic.Aggregates
+import qualified Database.Toxic.Aggregates as Agg
 import Database.Toxic.Query.AST
 import Database.Toxic.Streams
 import Database.Toxic.Types
@@ -58,7 +58,8 @@ placeholdersToContext bindings = BindingContext {
 aggregateFunctionFromBuiltin :: QueryAggregate -> AggregateFunction
 aggregateFunctionFromBuiltin aggregate =
   case aggregate of
-    QAggBoolOr -> bool_or
+    QAggBoolOr -> Agg.bool_or
+    QAggSum -> Agg.sum
 
 expressionType :: Expression -> Type
 expressionType expression = case expression of

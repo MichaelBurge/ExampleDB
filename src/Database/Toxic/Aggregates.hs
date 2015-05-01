@@ -25,3 +25,6 @@ simpleFoldAggregate name f initial =
 
 bool_or :: AggregateFunction
 bool_or = simpleFoldAggregate "bool_or" operatorOr $ VBool False
+
+sum :: AggregateFunction
+sum = simpleFoldAggregate "sum" operatorPlus $ VInt 0

@@ -5,6 +5,7 @@ import Database.Toxic.Types
 valueType :: Value -> Type
 valueType value = case value of
   VBool _ -> TBool
+  VInt _ -> TInt
   VNull   -> TUnknown
 
 arity2 :: (Value -> Value -> Value) -> (Value -> Value -> Value)
@@ -20,3 +21,9 @@ operatorOr = arity2 $ \a b ->
     (VBool x, VBool y) -> VBool $ x || y
     -- TODO: Switch to dedicated error type for this
     _ -> error $ "or: Incorrect types"
+
+operatorPlus :: Value -> Value -> Value
+operatorPlus = arity2 $ \a b ->
+  case (a, b) of
+    (VInt x, VInt y) -> VInt $ x + y
+    _ -> error $ "sum: Incorrect types"

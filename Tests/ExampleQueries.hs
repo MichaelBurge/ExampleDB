@@ -120,6 +120,13 @@ test_aggregate =
       expectedStream = singleton_stream expectedColumn $ VBool True
   in assertQueryResults nullEnvironment query expectedStream
 
+test_sum :: Assertion
+test_sum =
+  let query = "select sum(1) from (select false union all select false);"
+      expectedColumn = Column { columnName = "sum", columnType = TInt }
+      expectedStream = singleton_stream expectedColumn $ VInt 2
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -136,5 +143,6 @@ exampleQueriesTests =
     testCase "Null" test_null,
     testCase "Union rename" test_union_rename,
     testCase "Aggregate" test_aggregate,
-    testCase "Subquery Union" test_subquery_union
+    testCase "Subquery Union" test_subquery_union,
+    testCase "Sum" test_sum
     ]

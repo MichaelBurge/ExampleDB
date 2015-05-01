@@ -119,6 +119,7 @@ function = do
   keyword ")"
   case name of
     "bool_or" -> return $ EAggregate QAggBoolOr argument
+    "sum" -> return $ EAggregate QAggSum argument
     _ -> fail $ T.unpack $ "Unknown function " <> name
   
 
