@@ -209,6 +209,21 @@ getRowAggregates expressions =
       inputTransformers = V.map (\(_,_,x) -> x) splits
   in (continuations, aggregates, inputTransformers)
 
+getColumnOrdering :: Query -> Maybe (ArrayOf (Int, StreamOrder))
+getColumnOrdering query =
+  case queryOrderBy query of
+    Just orderBys ->
+      let findExpression :: Expression -> Int
+          findExpression expression =
+            let selects = queryProject query
+            in case V.findIndex (== expression) selects of
+              Just idx -> idx
+              Nothing -> error $ "getColumnOrdering: Unable to find an order by entry in the select clause"
+       in Just $
+          V.map (\(expr, order) -> (findExpression expr, order)) $
+          orderBys
+    Nothing -> Nothing
+
 -- | Always a replacement function on each subtree of the original expression
 mapAst :: Expression -> (Expression -> Expression) -> Expression
 mapAst expression f =
@@ -250,10 +265,14 @@ evaluateAggregateQuery environment query@(SingleQuery _ _ _ _) =
       }
 
 evaluateSingleQuery :: Environment -> Query -> IO Stream
-evaluateSingleQuery environment query@(SingleQuery _ _ _ _) =
-  if V.any hasAggregates $ queryProject query
-  then evaluateAggregateQuery environment query
-  else evaluateRowWiseQuery environment query     
+evaluateSingleQuery environment query@(SingleQuery _ _ _ _) = do
+  unorderedStream <-
+    if V.any hasAggregates $ queryProject query
+    then evaluateAggregateQuery environment query
+    else evaluateRowWiseQuery environment query
+  return $ case getColumnOrdering query of
+    Just orderings -> orderByColumns unorderedStream orderings
+    Nothing -> unorderedStream
   
     
 evaluateSingleQuery _ query = error $ "evaluateSingleQuery called on something other than a single query" ++ show query

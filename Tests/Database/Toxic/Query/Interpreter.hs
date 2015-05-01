@@ -134,7 +134,9 @@ test_subquery =
             querySource = Nothing,
             queryGroupBy = Nothing,
             queryOrderBy = Nothing
-            }
+            },
+          queryGroupBy = Nothing,
+          queryOrderBy = Nothing
           }
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = singleton_stream expectedColumn $ VBool True
@@ -146,6 +148,8 @@ test_cross_join :: Assertion
 test_cross_join =
   let statement = SQuery $
         SingleQuery {
+          queryGroupBy = Nothing,
+          queryOrderBy = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ ProductQuery {
             queryFactors = V.fromList [
@@ -184,7 +188,9 @@ test_subquery_multiple_rows =
         }
       statement = SQuery $ SingleQuery {
         queryProject = V.singleton $ ELiteral $ LBool True,
-        querySource = Just unionQuery
+        querySource = Just unionQuery,
+        queryGroupBy = Nothing,
+        queryOrderBy = Nothing
         }
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = single_column_stream expectedColumn $ replicate 2 $ VBool True
@@ -229,7 +235,9 @@ test_variable =
           querySource = Nothing,
           queryGroupBy = Nothing,
           queryOrderBy = Nothing
-          }
+          },
+        queryGroupBy = Nothing,
+        queryOrderBy = Nothing
         }
       expectedColumn = Column { columnName = "x", columnType = TUnknown }
       expectedStream = singleton_stream expectedColumn $ VBool True

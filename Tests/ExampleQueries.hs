@@ -144,6 +144,24 @@ test_sum_partitions =
         }
   in assertQueryResults nullEnvironment query expectedStream
 
+test_order_by :: Assertion
+test_order_by =
+  let query = "select y, x from (select true as y, 5 as x union all select false, 3 union all select true, 3 union all select false, 5) order by x, y descending;"
+      expectedHeader = V.fromList [
+        Column { columnName = "y", columnType = TUnknown },
+        Column { columnName = "x", columnType = TUnknown }
+        ]
+      expectedStream = Stream {
+        streamHeader = expectedHeader,
+        streamRecords = map (Record . V.fromList) [
+          [ VBool True,  VInt 3 ],
+          [ VBool False, VInt 3 ],
+          [ VBool True,  VInt 5 ],
+          [ VBool False, VInt 5 ]
+          ]
+        }
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -162,5 +180,6 @@ exampleQueriesTests =
     testCase "Aggregate" test_aggregate,
     testCase "Subquery Union" test_subquery_union,
     testCase "Sum" test_sum,
-    testCase "Sum partitions" test_sum_partitions
+    testCase "Sum partitions" test_sum_partitions,
+    testCase "Order by" test_order_by
     ]

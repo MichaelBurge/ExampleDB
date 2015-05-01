@@ -31,7 +31,7 @@ data Expression =
 
 data Query = SingleQuery {
   queryGroupBy :: Maybe (ArrayOf Expression),
-  queryOrderBy :: Maybe (ArrayOf Expression),
+  queryOrderBy :: Maybe (ArrayOf (Expression, StreamOrder)),
   queryProject :: ArrayOf Expression,
   querySource  :: Maybe Query
   } | SumQuery {

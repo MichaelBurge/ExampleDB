@@ -207,7 +207,7 @@ test_order_by =
         queryProject = V.singleton $ ELiteral $ LBool True,
         queryGroupBy = Nothing,
         querySource = Nothing,
-        queryOrderBy = Just $ V.singleton $ ELiteral $ LBool True
+        queryOrderBy = Just $ V.singleton (ELiteral $ LBool True, Ascending)
         }
   in assertQueryParses query expectedStatement
 

@@ -37,14 +37,12 @@ integer :: CharParser Literal
 integer = LInt <$> P.integer lexer
 
 identifier :: CharParser T.Text
-identifier =
-  let nondigit = letter <|> char '_'
-      allowedChar = nondigit <|> digit
-      chars = (:) <$> nondigit <*> many allowedChar
-  in T.pack <$> chars <* spaces
+identifier = T.pack <$> P.identifier lexer
 
 keyword :: String -> CharParser ()
-keyword text = try ( string text *> spaces *> return ())
+keyword text = P.reserved lexer text
+
+parens = P.parens lexer
 
 union_all :: CharParser ()
 union_all = keyword "union" *> keyword "all"
@@ -108,21 +106,33 @@ group_by_clause = do
   expressions <- V.fromList <$> sepBy1 expression (keyword ",")
   return expressions
 
-order_by_clause :: CharParser (ArrayOf Expression)
-order_by_clause = do
-  keyword "order by"
-  expressions <- V.fromList <$> sepBy1 expression (keyword ",")
-  return expressions
+order_by_clause :: CharParser (ArrayOf (Expression, StreamOrder))
+order_by_clause =
+  let order_by_expression :: CharParser (Expression, StreamOrder)
+      order_by_expression =
+        let streamOrder :: CharParser StreamOrder
+            streamOrder =
+                  ((keyword "asc" <|> keyword "ascending") *> return Ascending)
+              <|> ((keyword "desc" <|> keyword "descending") *> return Descending)
+              <|> return Ascending
+        in do
+          expression <- expression
+          order <- streamOrder
+          return (expression, order)
+  in do
+    try $ do
+      keyword "order"
+      keyword "by"
+    expressions <- V.fromList <$> sepBy1 order_by_expression (keyword ",")
+    return expressions
 
 subquery :: CharParser Query
-subquery = keyword "(" *> query <* keyword ")"
+subquery = parens query
 
 function :: CharParser Expression
 function = do
   name <- identifier
-  keyword "("
-  argument <- expression
-  keyword ")"
+  argument <- parens expression
   case name of
     "bool_or" -> return $ EAggregate QAggBoolOr argument
     "sum" -> return $ EAggregate QAggSum argument
