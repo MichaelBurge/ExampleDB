@@ -108,6 +108,12 @@ group_by_clause = do
   expressions <- V.fromList <$> sepBy1 expression (keyword ",")
   return expressions
 
+order_by_clause :: CharParser (ArrayOf Expression)
+order_by_clause = do
+  keyword "order by"
+  expressions <- V.fromList <$> sepBy1 expression (keyword ",")
+  return expressions
+
 subquery :: CharParser Query
 subquery = keyword "(" *> query <* keyword ")"
 
@@ -136,10 +142,12 @@ single_query = do
   expressions <- select_clause
   source <- from_clause
   groupBy <- optionMaybe group_by_clause
+  orderBy <- optionMaybe order_by_clause
   return $ SingleQuery {
     queryGroupBy = groupBy,
     queryProject = expressions,
-    querySource = source
+    querySource = source,
+    queryOrderBy = orderBy
     }
     
 composite_query :: CharParser Query

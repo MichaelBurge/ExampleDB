@@ -73,10 +73,14 @@ test_union =
            queryConstituentQueries = V.fromList [
              SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
                            queryGroupBy = Nothing,
-                           querySource = Nothing },
+                           querySource = Nothing,
+                           queryOrderBy = Nothing
+                         },
              SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False,
                            queryGroupBy = Nothing,
-                           querySource = Nothing }
+                           querySource = Nothing,
+                           queryOrderBy = Nothing
+                         }
            ]
          }
   in assertQueryParses query expectedStatement
@@ -87,11 +91,13 @@ test_subquery =
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
+          queryOrderBy = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ SingleQuery {
             queryProject = V.singleton $ ELiteral $ LBool False,
             queryGroupBy = Nothing,
-            querySource = Nothing
+            querySource = Nothing,
+            queryOrderBy = Nothing
             }
           }
   in assertQueryParses query expectedStatement
@@ -102,18 +108,21 @@ test_cross_join =
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
+          queryOrderBy = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ ProductQuery {
             queryFactors = V.fromList [
                SingleQuery {
                   queryProject = V.singleton $ ELiteral $ LBool True,
                   queryGroupBy = Nothing,
-                  querySource = Nothing
+                  querySource = Nothing,
+                  queryOrderBy = Nothing
                   },
                SingleQuery {
                  queryProject = V.singleton $ ELiteral $ LBool False,
                  queryGroupBy = Nothing,
-                 querySource = Nothing
+                 querySource = Nothing,
+                 queryOrderBy = Nothing
                  }
                ]
             }
@@ -126,11 +135,13 @@ test_variable =
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
+          queryOrderBy = Nothing,
           queryProject = V.singleton $ EVariable "x",
           querySource = Just $ SingleQuery {
             queryProject = V.singleton $ ERename (ELiteral $ LBool True) "x",
             queryGroupBy = Nothing,
-            querySource = Nothing
+            querySource = Nothing,
+            queryOrderBy = Nothing
             }
           }
   in assertQueryParses query expectedStatement
@@ -153,7 +164,8 @@ test_group_by =
       expectedStatement = SQuery SingleQuery {
         queryProject = V.singleton $ ELiteral $ LBool True,
         queryGroupBy = Just $ V.singleton $ ELiteral $ LBool True,
-        querySource = Nothing
+        querySource = Nothing,
+        queryOrderBy = Nothing
         }
   in assertQueryParses query expectedStatement
 
@@ -163,15 +175,20 @@ test_aggregate_from =
       expectedStatement = SQuery SingleQuery {
         queryProject = V.singleton $ EAggregate QAggBoolOr $ EVariable "x",
         queryGroupBy = Nothing,
+        queryOrderBy = Nothing,
         querySource = Just $ SumQuery {
           queryCombineOperation = QuerySumUnionAll,
           queryConstituentQueries = V.fromList [
             SingleQuery { queryProject = V.singleton $ ERename (ELiteral $ LBool False) "x",
                           queryGroupBy = Nothing,
-                          querySource = Nothing},
+                          querySource = Nothing,
+                          queryOrderBy = Nothing
+                        },
             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
                           queryGroupBy = Nothing,
-                          querySource = Nothing }
+                          querySource = Nothing,
+                          queryOrderBy = Nothing
+                        }
             ]
           }
         }
@@ -181,6 +198,17 @@ test_integer_literal :: Assertion
 test_integer_literal =
   let query = "select 5;"
       expectedStatement = singleton_statement $ ELiteral $ LInt 5
+  in assertQueryParses query expectedStatement
+
+test_order_by :: Assertion
+test_order_by =
+  let query = "select true order by true;"
+      expectedStatement = SQuery SingleQuery {
+        queryProject = V.singleton $ ELiteral $ LBool True,
+        queryGroupBy = Nothing,
+        querySource = Nothing,
+        queryOrderBy = Just $ V.singleton $ ELiteral $ LBool True
+        }
   in assertQueryParses query expectedStatement
 
 parserTests :: Test.Framework.Test
@@ -199,6 +227,7 @@ parserTests =
     testCase "bool_or()" test_bool_or,
     testCase "Group by" test_group_by,
     testCase "Aggregate from" test_aggregate_from,
-    testCase "Integer literal" test_integer_literal
+    testCase "Integer literal" test_integer_literal,
+    testCase "Order by" test_order_by
     ]
   
