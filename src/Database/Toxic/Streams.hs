@@ -2,7 +2,8 @@ module Database.Toxic.Streams where
 
 import Database.Toxic.Types
 
-import Data.List (foldl')
+import Data.Function
+import Data.List (foldl', sortBy)
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -106,6 +107,37 @@ summarizeByKey rows aggregates =
       finalRecords :: Summarization
       finalRecords = finalize aggregates finalStates
   in finalRecords
+
+orderBy :: Stream -> (Record -> Record -> Ordering) -> Stream
+orderBy stream order= stream {
+  streamRecords = sortBy order $ streamRecords stream
+  }
+
+orderByMultiple :: Stream -> ArrayOf (Record -> Record -> Ordering) -> Stream
+orderByMultiple stream orderFunctions =
+  let order :: Record -> Record -> Ordering
+      order a b =
+        let orderings = V.map (\f -> f a b) orderFunctions
+        in V.foldr' thenCmp EQ orderings
+  in orderBy stream order
+
+thenCmp :: Ordering -> Ordering -> Ordering
+thenCmp EQ o2 = o2
+thenCmp o1 _ = o1
+
+orderFunctionFromStreamOrder :: Int -> StreamOrder -> (Record -> Record -> Ordering)
+orderFunctionFromStreamOrder index streamOrder =
+  let indexRecord (Record xs) = xs V.! index
+  in case streamOrder of
+    Unordered -> \a b -> EQ
+    Ascending -> compare `on` indexRecord
+    Descending -> flip compare `on` indexRecord
+
+orderByColumns :: Stream -> ArrayOf (Int, StreamOrder) -> Stream
+orderByColumns stream orders =
+  let orderFunctionByIndex :: (Int, StreamOrder) -> (Record -> Record -> Ordering)
+      orderFunctionByIndex (column, streamOrder) = orderFunctionFromStreamOrder column streamOrder
+  in orderByMultiple stream $ V.map orderFunctionByIndex orders
 
 singleton_stream :: Column -> Value -> Stream
 singleton_stream column value =

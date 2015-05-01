@@ -9,6 +9,8 @@ import qualified Data.Map.Strict as M
 type ArrayOf a = V.Vector a
 type SetOf a = [ a ]
 
+data StreamOrder = Unordered | Descending | Ascending deriving (Eq, Ord, Show)
+
 data Value =
       VBool Bool
     | VInt Int

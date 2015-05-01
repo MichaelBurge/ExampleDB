@@ -3,6 +3,7 @@
 module Database.Toxic.Query.Interpreter where
 
 import qualified Database.Toxic.Aggregates as Agg
+import Database.Toxic.Operators
 import Database.Toxic.Query.AST
 import Database.Toxic.Streams
 import Database.Toxic.Types
@@ -33,6 +34,7 @@ literalType literal = case literal of
   LBool _ -> TBool
   LInt _ -> TInt
   LNull -> TUnknown
+  LValue x -> valueType x
 
 lookupVariable :: BindingContext -> T.Text -> Value
 lookupVariable context name =
@@ -128,6 +130,7 @@ evaluateLiteral literal = case literal of
   LBool x -> VBool x
   LInt x -> VInt $ fromInteger x
   LNull -> VNull
+  LValue x -> x
 
 -- | Evaluates 
 evaluateOneExpression :: BindingContext -> Expression -> Value

@@ -73,11 +73,40 @@ test_aggregate =
       actualMap = summarizeByKey inputs $ V.fromList [ bool_or ]
   in assertEqual "" expectedMap actualMap
 
+test_order_by_columns :: Assertion
+test_order_by_columns =
+  let header = V.fromList [
+        Column { columnName = "y", columnType = TBool },
+        Column { columnName = "x", columnType = TInt }
+        ]
+      originalStream = Stream {
+        streamHeader = header,
+        streamRecords = map (Record . V.fromList) [
+          [ VBool True, VInt 5 ],
+          [ VBool False, VInt 3 ],
+          [ VBool True, VInt 3 ],
+          [ VBool False, VInt 5 ]
+          ]
+        }
+      expectedStream = Stream {
+        streamHeader = header,
+        streamRecords = map (Record . V.fromList) [
+          [ VBool True, VInt 3 ],
+          [ VBool False, VInt 3 ],
+          [ VBool True, VInt 5 ],
+          [ VBool False, VInt 5 ]
+          ]
+        }
+      actualStream = orderByColumns originalStream $
+                     V.fromList [(1, Ascending), (0, Descending)]
+  in assertEqual "" expectedStream actualStream
+
 streamsTests :: Test.Framework.Test
 streamsTests =
   testGroup "Streams" [
     testCase "Union all" test_union_all,
     testCase "Cross join(record)" test_cross_join_records,
     testCase "Cross join" test_cross_join,
-    testCase "Aggregate" test_aggregate
+    testCase "Aggregate" test_aggregate,
+    testCase "Order by" test_order_by_columns
     ]
