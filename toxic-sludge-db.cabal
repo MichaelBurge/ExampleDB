@@ -30,7 +30,7 @@ library
     Database.Toxic.Types
   build-depends:
     base >=4.7 && <4.8,
-    binary,
+    binary == 0.7.4.*,
     bytestring,
     containers,
     haskeline == 0.7.2.1,
@@ -52,7 +52,7 @@ test-suite toxic-sludge-tests
   type: exitcode-stdio-1.0
   build-depends:
     base >=4.7 && <4.8,
-    binary,
+    binary == 0.7.4.*,
     bytestring,
     containers,
     HUnit,

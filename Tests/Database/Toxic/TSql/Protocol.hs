@@ -21,6 +21,7 @@ import Test.QuickCheck
 test_startup_message :: Assertion
 test_startup_message =
   let message = StartupMessage {
+        startupMessageProtocolVersion = defaultProtocolVersion,
         startupMessageParameters = V.fromList [
            ("user", "mburge"),
            ("database", "mburge"),

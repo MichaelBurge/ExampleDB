@@ -1,6 +1,7 @@
 module Database.Toxic.TSql.Protocol where
 
 import Data.Binary
+import Data.Binary.Get
 import Data.Binary.Put
 import Data.Bits
 import qualified Data.ByteString as BS
@@ -138,22 +139,52 @@ data RowDescription = RowDescription {
   rowDescriptionFields :: V.Vector RowDescriptionField
   } deriving (Eq, Show)
 data SSLRequest = SSLRequest deriving (Eq, Show)
+
+-- | Sent at the start of a psql session
 data StartupMessage = StartupMessage {
+  startupMessageProtocolVersion :: Word32,
   startupMessageParameters :: V.Vector (BS.ByteString, BS.ByteString)
   } deriving (Eq, Show)
-data Sync = Sync deriving (Eq, Show)
-data Terminate = Terminate deriving (Eq, Show)
 
-sizeOfWord32 :: Word32
-sizeOfWord32 = 4
+isNullByte :: Get Bool
+isNullByte = do
+  next <- lookAhead getWord8
+  if next == 0
+    then getWord8 >> return True
+    else return False
+
+defaultProtocolMajorVersion = 3 :: Word16
+defaultProtocolMinorVersion = 0 :: Word16
+defaultProtocolVersion =
+  (fromIntegral defaultProtocolMajorVersion) `shiftL` 16 +
+  (fromIntegral defaultProtocolMinorVersion) :: Word32
 
 instance Binary StartupMessage where
-  get = error "Message::get: Implement me!"
-  put (StartupMessage { startupMessageParameters = parameters }) = do
-    let protocolMajorVersion = 3 :: Word16
-        protocolMinorVersion = 0 :: Word16
-        protocolVersion = (fromIntegral protocolMajorVersion) `shiftL` 16 + (fromIntegral protocolMinorVersion) :: Word32
-        putParameter :: (BS.ByteString, BS.ByteString)  -> Put
+  get = do
+    size <- getWord32be
+    isolate (fromIntegral $ size - sizeOfWord32) $ do
+      protocolVersion <- getWord32be
+      let readOneParameter = do
+            name <- getLazyByteStringNul
+            value <- getLazyByteStringNul
+            return (BSL.toStrict name, BSL.toStrict value)
+          readParameters = do
+            isAtEnd <- isNullByte
+            if isAtEnd
+              then return []
+              else do
+                chunk <- readOneParameter
+                chunks <- readParameters
+                return $ chunk : chunks
+      parameters <- readParameters
+      return StartupMessage {
+        startupMessageProtocolVersion = protocolVersion,
+        startupMessageParameters = V.fromList parameters
+        }
+  put (StartupMessage {
+          startupMessageProtocolVersion = protocolVersion,
+          startupMessageParameters = parameters }) = do
+    let putParameter :: (BS.ByteString, BS.ByteString)  -> Put
         putParameter (name, value) = do
           putByteString name
           putWord8 0
@@ -166,4 +197,11 @@ instance Binary StartupMessage where
     putWord32be protocolVersion
     putLazyByteString parametersBs
     putWord8 0
+             
+data Sync = Sync deriving (Eq, Show)
+data Terminate = Terminate deriving (Eq, Show)
+
+sizeOfWord32 :: Word32
+sizeOfWord32 = 4
+
 
