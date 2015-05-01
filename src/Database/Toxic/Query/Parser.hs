@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import Text.Parsec
 import Text.Parsec.Combinator
+import Text.Parsec.Expr
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
 
@@ -24,7 +25,7 @@ sqlLanguageDef = P.LanguageDef {
   P.nestedComments = False,
   P.identStart = letter <|> char '_',
   P.identLetter = alphaNum <|> char '_',
-  P.opStart = oneOf "",
+  P.opStart = oneOf "+",
   P.opLetter = oneOf "",
   P.reservedNames = [],
   P.reservedOpNames = [],
@@ -41,6 +42,17 @@ identifier = T.pack <$> P.identifier lexer
 
 keyword :: String -> CharParser ()
 keyword text = P.reserved lexer text
+
+operator :: String -> CharParser ()
+operator text = P.reservedOp lexer text
+
+operator_table = [ [ prefix "not" (EUnop UnopNot) ],
+                   [ binary "+" (EBinop BinopPlus) AssocLeft ]
+                 ]
+
+binary name fun assoc = Infix (operator name *> return fun) assoc
+prefix name fun = Prefix (operator name *> return fun)
+postfix name fun = Postfix (operator name *> return fun)
 
 parens = P.parens lexer
 
@@ -82,13 +94,29 @@ not_expression = do
 variable :: CharParser Expression
 variable = EVariable <$> identifier
 
-expression :: CharParser Expression
-expression =
+binop :: CharParser Binop
+binop = operator "+" *> return BinopPlus
+
+binop_expression :: CharParser Expression
+binop_expression = do
+  (x1, op) <- try $ do
+    x1 <- expression
+    op <- binop
+    return (x1, op)
+  x2 <- expression
+  return $ EBinop op x1 x2
+
+term :: CharParser Expression
+term =
         try(ELiteral <$> literal)
     <|> case_when_expression
-    <|> not_expression
     <|> try function
     <|> variable
+    <|> parens expression
+    <?> "term"
+
+expression :: CharParser Expression
+expression = buildExpressionParser operator_table term
 
 rename_clause :: CharParser T.Text
 rename_clause = keyword "as" *> identifier

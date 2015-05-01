@@ -23,6 +23,10 @@ data Unop =
   UnopNot
   deriving (Eq, Show)
 
+data Binop =
+  BinopPlus
+  deriving (Eq, Show)
+
 data Expression =
     ELiteral Literal
   | ERename Expression T.Text
@@ -31,6 +35,7 @@ data Expression =
   | EAggregate QueryAggregate Expression
   | EPlaceholder Int
   | EUnop Unop Expression
+  | EBinop Binop Expression Expression
   deriving (Eq, Show)
 
 

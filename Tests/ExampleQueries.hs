@@ -169,6 +169,13 @@ test_not =
       expectedStream = singleton_stream expectedColumn $ VBool False
   in assertQueryResults nullEnvironment query expectedStream
 
+test_plus :: Assertion
+test_plus =
+  let query = "select 1 + 1;"
+      expectedColumn = Column { columnName = "plus", columnType = TInt }
+      expectedStream = singleton_stream expectedColumn $ VInt 2
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -189,5 +196,6 @@ exampleQueriesTests =
     testCase "Sum" test_sum,
     testCase "Sum partitions" test_sum_partitions,
     testCase "Order by" test_order_by,
-    testCase "Not" test_not
+    testCase "Not" test_not,
+    testCase "Plus" test_plus
     ]

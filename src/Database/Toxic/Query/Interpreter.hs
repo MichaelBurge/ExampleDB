@@ -67,6 +67,7 @@ aggregateFunctionFromBuiltin aggregate =
 expressionType :: Expression -> Type
 expressionType expression = case expression of
   EUnop UnopNot x -> TBool
+  EBinop BinopPlus _ _ -> TInt
   ELiteral x -> literalType x
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
@@ -77,6 +78,7 @@ expressionType expression = case expression of
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
   EUnop UnopNot _ -> "not"
+  EBinop BinopPlus _ _ -> "plus"
   ELiteral _ -> "literal"
   ERename _ x -> x
   ECase _ _ -> "case"
@@ -110,6 +112,12 @@ splitAggregate expression =
       Just (continuation, aggregate, transform) ->
         Just $ (EUnop unop continuation, aggregate, transform)
       Nothing -> Nothing
+    EBinop binop x y -> case (splitAggregate x, splitAggregate y) of
+      (Nothing, Nothing) -> Nothing
+      (Just (c1, a1, t1), Nothing) -> Just (EBinop binop c1 y, a1, t1)
+      (Nothing, Just (c1, a1, t1)) -> Just (EBinop binop x c1, a1, t1)
+      (Just (c1, a1, t1), Just (c2, a2, t2)) ->
+        error "splitAggregate: Aggregates on both sides of a binary operator are unsupported"
 
 -- | Same as splitAggregate, but replaces non-aggregate expressions with a placeholder
 -- | that fails if aggregated.
@@ -124,6 +132,7 @@ hasAggregates expression =
     ECase _ _ -> False
     ELiteral _ -> False
     EUnop _ x -> hasAggregates x
+    EBinop _ x y -> hasAggregates x || hasAggregates y
     ERename x _ -> hasAggregates x
     EAggregate _ _ -> True
     EPlaceholder _ -> False
@@ -140,9 +149,10 @@ evaluateLiteral literal = case literal of
   LValue x -> x
 
 applyUnop :: Unop -> Value -> Value
-applyUnop _ VNull = VNull
-applyUnop UnopNot (VBool x) = VBool (not x)
-applyUnop UnopNot _ = error "applyUnop: Type error"
+applyUnop UnopNot = operatorNot
+
+applyBinop :: Binop -> Value -> Value -> Value
+applyBinop BinopPlus = operatorPlus
 
 -- | Evaluates 
 evaluateOneExpression :: BindingContext -> Expression -> Value
@@ -167,7 +177,12 @@ evaluateOneExpression context expression = case expression of
        aggregateInitialize aggregate
   EPlaceholder n -> lookupPlaceholder context n
   EUnop unop inner -> applyUnop unop $ evaluateOneExpression context inner
+  EBinop binop x1 x2 ->
+    let v1 = evaluateOneExpression context x1
+        v2 = evaluateOneExpression context x2
+    in applyBinop binop v1 v2
   
+
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
 evaluateExpressions expressions context = 
   Record $ V.map (evaluateOneExpression context) expressions
@@ -249,6 +264,7 @@ mapAst expression f =
         EAggregate aggregate child -> EAggregate aggregate $ f child
         EPlaceholder _ -> parent
         EUnop unop x -> EUnop unop (mapChildren x)
+        EBinop binop x y -> EBinop binop (mapChildren x) (mapChildren y)
   in f $ mapChildren expression
 
 -- | Evaluates a query with aggregates over a primary key

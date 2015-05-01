@@ -8,6 +8,12 @@ valueType value = case value of
   VInt _ -> TInt
   VNull   -> TUnknown
 
+arity1 :: (Value -> Value) -> (Value -> Value)
+arity1 f a =
+  case a of
+    VNull -> VNull
+    _ -> f a
+
 arity2 :: (Value -> Value -> Value) -> (Value -> Value -> Value)
 arity2 f a b =
   case (a, b) of
@@ -15,18 +21,24 @@ arity2 f a b =
     (_, VNull) -> VNull
     _ -> f a b
 
+operatorNot :: Value -> Value
+operatorNot = arity1 $ \a ->
+  case a of
+    VBool x -> VBool $ not x
+    _ -> error $ "operatorNot: Incorrect type"
+
 operatorOr :: Value -> Value -> Value
 operatorOr = arity2 $ \a b ->
   case (a, b) of
     (VBool x, VBool y) -> VBool $ x || y
     -- TODO: Switch to dedicated error type for this
-    _ -> error $ "or: Incorrect types"
+    _ -> error $ "operatorOr: Incorrect types"
 
 operatorPlus :: Value -> Value -> Value
 operatorPlus = arity2 $ \a b ->
   case (a, b) of
     (VInt x, VInt y) -> VInt $ x + y
-    _ -> error $ "sum: Incorrect types"
+    _ -> error $ "operatorPlus: Incorrect types"
 
 -- TODO: This operator mixes the 'null as uninitialized' with 'null as SQL value'.
 -- There should probably be a separate 'unitialized' value.
