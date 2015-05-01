@@ -8,6 +8,7 @@ type Condition = Expression
 
 data Literal =
     LBool Bool
+  | LInt Integer
   | LNull
   | LValue Value
   deriving (Eq, Show)

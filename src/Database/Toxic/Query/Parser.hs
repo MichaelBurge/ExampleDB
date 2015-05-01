@@ -12,8 +12,29 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import Text.Parsec
 import Text.Parsec.Combinator
+import Text.Parsec.Language
+import qualified Text.Parsec.Token as P
 
 type CharParser a = Parsec String () a
+
+sqlLanguageDef = P.LanguageDef {
+  P.commentStart = "",
+  P.commentEnd = "",
+  P.commentLine = "--",
+  P.nestedComments = False,
+  P.identStart = letter <|> char '_',
+  P.identLetter = alphaNum <|> char '_',
+  P.opStart = oneOf "",
+  P.opLetter = oneOf "",
+  P.reservedNames = [],
+  P.reservedOpNames = [],
+  P.caseSensitive = False
+  }
+
+lexer = P.makeTokenParser sqlLanguageDef
+
+integer :: CharParser Literal
+integer = LInt <$> P.integer lexer
 
 identifier :: CharParser T.Text
 identifier =
@@ -33,7 +54,7 @@ literal =
   let true = keyword "true" *> return (LBool True)
       false = keyword "false" *> return (LBool False)
       null = keyword "null" *> return LNull
-  in true <|> false <|> null
+  in true <|> false <|> null <|> integer
 
 case_condition :: CharParser (Condition, Expression)
 case_condition = do

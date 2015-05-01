@@ -177,6 +177,12 @@ test_aggregate_from =
         }
   in assertQueryParses query expectedStatement
 
+test_integer_literal :: Assertion
+test_integer_literal =
+  let query = "select 5;"
+      expectedStatement = singleton_statement $ ELiteral $ LInt 5
+  in assertQueryParses query expectedStatement
+
 -- test_multiple_items :: Assertion
 -- test_multiple_items =
 --   let tokens =
@@ -204,6 +210,7 @@ parserTests =
     testCase "Null" test_null,
     testCase "bool_or()" test_bool_or,
     testCase "Group by" test_group_by,
-    testCase "Aggregate from" test_aggregate_from
+    testCase "Aggregate from" test_aggregate_from,
+    testCase "Integer literal" test_integer_literal
     ]
   
