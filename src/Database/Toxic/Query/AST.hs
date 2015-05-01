@@ -24,7 +24,10 @@ data Unop =
   deriving (Eq, Show)
 
 data Binop =
-  BinopPlus
+    BinopPlus
+  | BinopMinus
+  | BinopTimes
+  | BinopDividedBy
   deriving (Eq, Show)
 
 data Expression =

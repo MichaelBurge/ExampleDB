@@ -40,6 +40,25 @@ operatorPlus = arity2 $ \a b ->
     (VInt x, VInt y) -> VInt $ x + y
     _ -> error $ "operatorPlus: Incorrect types"
 
+operatorMinus :: Value -> Value -> Value
+operatorMinus = arity2 $ \a b ->
+  case (a, b) of
+    (VInt x, VInt y) -> VInt $ x - y
+    _ -> error $ "OperatorMinus: Incorrect types"
+
+operatorTimes :: Value -> Value -> Value
+operatorTimes = arity2 $ \a b ->
+  case (a, b) of
+    (VInt x, VInt y) -> VInt $ x * y
+    _ -> error $ "operatorTimes: Incorrect types"
+  
+operatorDividedBy :: Value -> Value -> Value
+operatorDividedBy = arity2 $ \a b ->
+  case (a, b) of
+    (VInt x, VInt 0) -> VNull
+    (VInt x, VInt y) -> VInt $ x `div` y
+    _ -> error $ "operatorDividedBy: Incorrect types"
+
 -- TODO: This operator mixes the 'null as uninitialized' with 'null as SQL value'.
 -- There should probably be a separate 'unitialized' value.
 operatorFailUnlessNull :: Value -> Value -> Value

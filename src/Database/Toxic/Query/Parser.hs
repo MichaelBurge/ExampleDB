@@ -46,9 +46,13 @@ keyword text = P.reserved lexer text
 operator :: String -> CharParser ()
 operator text = P.reservedOp lexer text
 
-operator_table = [ [ prefix "not" (EUnop UnopNot) ],
-                   [ binary "+" (EBinop BinopPlus) AssocLeft ]
-                 ]
+operator_table =
+  let mkUnop name unop = prefix name (EUnop unop)
+      mkBinop name binop = binary name (EBinop binop) AssocLeft
+  in [ [ mkUnop "not" UnopNot ],
+       [ mkBinop "*" BinopTimes, mkBinop "/" BinopDividedBy ],
+       [ mkBinop "+" BinopPlus, mkBinop "-" BinopMinus ]
+     ]
 
 binary name fun assoc = Infix (operator name *> return fun) assoc
 prefix name fun = Prefix (operator name *> return fun)

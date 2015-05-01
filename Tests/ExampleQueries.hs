@@ -176,6 +176,21 @@ test_plus =
       expectedStream = singleton_stream expectedColumn $ VInt 2
   in assertQueryResults nullEnvironment query expectedStream
 
+test_numeric_binops :: Assertion
+test_numeric_binops =
+  let query = "select 1 + 1, 1 - 1, 1 * 1, 1 / 1;"
+      expectedColumn name = Column { columnName = name, columnType = TInt }
+      expectedStream = Stream {
+        streamHeader = V.fromList [
+           expectedColumn "plus",
+           expectedColumn "minus",
+           expectedColumn "times",
+           expectedColumn "div"
+           ],
+        streamRecords = [ Record $ V.fromList [ VInt 2, VInt 0, VInt 1, VInt 1 ] ]
+        }
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -197,5 +212,6 @@ exampleQueriesTests =
     testCase "Sum partitions" test_sum_partitions,
     testCase "Order by" test_order_by,
     testCase "Not" test_not,
-    testCase "Plus" test_plus
+    testCase "Plus" test_plus,
+    testCase "Binops" test_numeric_binops
     ]

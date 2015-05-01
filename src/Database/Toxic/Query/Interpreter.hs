@@ -64,10 +64,28 @@ aggregateFunctionFromBuiltin aggregate =
     QAggFailIfAggregated -> Agg.fail_if_aggregated
     QAggSum -> Agg.sum
 
+unopName :: Unop -> T.Text
+unopName UnopNot = "not"
+
+unopType :: Unop -> Type
+unopType UnopNot = TBool
+
+binopType :: Binop -> Type
+binopType BinopPlus = TInt
+binopType BinopMinus = TInt
+binopType BinopTimes = TInt
+binopType BinopDividedBy = TInt
+
+binopName :: Binop -> T.Text
+binopName BinopPlus = "plus"
+binopName BinopMinus = "minus"
+binopName BinopTimes = "times"
+binopName BinopDividedBy = "div"
+
 expressionType :: Expression -> Type
 expressionType expression = case expression of
-  EUnop UnopNot x -> TBool
-  EBinop BinopPlus _ _ -> TInt
+  EUnop unop _ -> unopType unop
+  EBinop binop _ _ -> binopType binop
   ELiteral x -> literalType x
   ERename x _ -> expressionType x
   ECase vs _ -> expressionType $ snd $ V.head vs
@@ -77,8 +95,8 @@ expressionType expression = case expression of
 
 expressionName :: Expression -> T.Text
 expressionName expression = case expression of
-  EUnop UnopNot _ -> "not"
-  EBinop BinopPlus _ _ -> "plus"
+  EUnop unop _ -> unopName unop
+  EBinop binop _ _ -> binopName binop
   ELiteral _ -> "literal"
   ERename _ x -> x
   ECase _ _ -> "case"
@@ -153,6 +171,9 @@ applyUnop UnopNot = operatorNot
 
 applyBinop :: Binop -> Value -> Value -> Value
 applyBinop BinopPlus = operatorPlus
+applyBinop BinopMinus = operatorMinus
+applyBinop BinopTimes = operatorTimes
+applyBinop BinopDividedBy = operatorDividedBy
 
 -- | Evaluates 
 evaluateOneExpression :: BindingContext -> Expression -> Value
