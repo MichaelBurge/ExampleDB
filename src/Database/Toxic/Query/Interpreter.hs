@@ -31,6 +31,7 @@ nullContext = BindingContext {
 literalType :: Literal -> Type
 literalType literal = case literal of
   LBool _ -> TBool
+  LInt _ -> TInt
   LNull -> TUnknown
 
 lookupVariable :: BindingContext -> T.Text -> Value
@@ -123,6 +124,7 @@ queryColumns query = V.map expressionColumn (queryProject query)
 evaluateLiteral :: Literal -> Value
 evaluateLiteral literal = case literal of
   LBool x -> VBool x
+  LInt x -> VInt $ fromInteger x
   LNull -> VNull
 
 -- | Evaluates 

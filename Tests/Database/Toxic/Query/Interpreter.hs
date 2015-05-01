@@ -237,6 +237,15 @@ test_aggregate =
     actualStream <- execute nullEnvironment statement
     assertEqual "" expectedStream actualStream
 
+test_integer_literal :: Assertion
+test_integer_literal =
+  let statement = singleton_statement $ ELiteral $ LInt 5
+      expectedColumn = Column { columnName = "literal", columnType = TInt }
+      expectedStream = singleton_stream expectedColumn $ VInt 5
+  in do
+    actualStream <- execute nullEnvironment statement
+    assertEqual "" expectedStream actualStream
+
 interpreterTests :: Test.Framework.Test
 interpreterTests =
   testGroup "Interpreter" [
@@ -252,5 +261,6 @@ interpreterTests =
     testCase "Cross Join" test_cross_join,
     testCase "Variable" test_variable,
     testCase "Null" test_null,
-    testCase "Aggregate" test_aggregate
+    testCase "Aggregate" test_aggregate,
+    testCase "Integer literal" test_integer_literal
     ]

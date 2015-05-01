@@ -11,11 +11,13 @@ type SetOf a = [ a ]
 
 data Value =
       VBool Bool
+    | VInt Int
     | VNull
     deriving (Eq, Ord, Show)
 
 data Type =
       TBool
+    | TInt
     | TUnknown
     deriving (Eq, Ord, Show)
 
