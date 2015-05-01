@@ -60,6 +60,7 @@ data Query = SingleQuery {
   queryFactors :: ArrayOf Query
   }
   deriving (Eq, Show)
+
 data Statement =
   SQuery Query
   deriving (Eq, Show)
