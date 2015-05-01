@@ -83,7 +83,7 @@ test_union =
 
 test_subquery :: Assertion
 test_subquery =
-  let query = "select true from ( select false )"
+  let query = "select true from ( select false );"
       expectedStatement = SQuery $
         SingleQuery {
           queryGroupBy = Nothing,
@@ -157,6 +157,26 @@ test_group_by =
         }
   in assertQueryParses query expectedStatement
 
+test_aggregate_from :: Assertion
+test_aggregate_from =
+  let query = "select bool_or(x) from (select false as x union all select true);"
+      expectedStatement = SQuery SingleQuery {
+        queryProject = V.singleton $ EAggregate QAggBoolOr $ EVariable "x",
+        queryGroupBy = Nothing,
+        querySource = Just $ SumQuery {
+          queryCombineOperation = QuerySumUnionAll,
+          queryConstituentQueries = V.fromList [
+            SingleQuery { queryProject = V.singleton $ ERename (ELiteral $ LBool False) "x",
+                          queryGroupBy = Nothing,
+                          querySource = Nothing},
+            SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
+                          queryGroupBy = Nothing,
+                          querySource = Nothing }
+            ]
+          }
+        }
+  in assertQueryParses query expectedStatement
+
 -- test_multiple_items :: Assertion
 -- test_multiple_items =
 --   let tokens =
@@ -183,6 +203,7 @@ parserTests =
     testCase "Variable" test_variable,
     testCase "Null" test_null,
     testCase "bool_or()" test_bool_or,
-    testCase "Group by" test_group_by
+    testCase "Group by" test_group_by,
+    testCase "Aggregate from" test_aggregate_from
     ]
   

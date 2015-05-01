@@ -20,7 +20,6 @@ library
   exposed-modules:
     Database.Toxic.Query.AST
     Database.Toxic.Query.Interpreter
-    Database.Toxic.Query.Tokenizer
     Database.Toxic.Streams
     Database.Toxic.Types
   build-depends:

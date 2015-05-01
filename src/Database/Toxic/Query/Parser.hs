@@ -66,7 +66,6 @@ expression =
 
 rename_clause :: CharParser T.Text
 rename_clause = keyword "as" *> identifier
-                <?> "Bad identifier in rename clause"
 
 select_item :: CharParser Expression
 select_item = do 
@@ -94,23 +93,26 @@ subquery = keyword "(" *> query <* keyword ")"
 function :: CharParser Expression
 function = do
   name <- identifier
-  char '('
+  keyword "("
   argument <- expression
-  char ')'
+  keyword ")"
   case name of
     "bool_or" -> return $ EAggregate QAggBoolOr argument
     _ -> fail $ T.unpack $ "Unknown function " <> name
   
 
-from_clause :: CharParser Query
-from_clause = do
-  keyword "from"
-  try product_query <|> subquery
+from_clause :: CharParser (Maybe Query)
+from_clause =
+  let real_from_clause = do
+        try $ keyword "from"
+        product_query
+  in (Just <$> real_from_clause) <|>
+     return Nothing
 
 single_query :: CharParser Query
 single_query = do
   expressions <- select_clause
-  source <- optionMaybe from_clause
+  source <- from_clause
   groupBy <- optionMaybe group_by_clause
   return $ SingleQuery {
     queryGroupBy = groupBy,
@@ -134,8 +136,9 @@ product_query =
                     sepBy1 subquery (keyword ",")
   in do
     subqueries <- one_or_more
-    when (V.length subqueries == 1) $ fail "A single product query is just a single query"
-    return $ ProductQuery { queryFactors = subqueries }
+    return $ if V.length subqueries == 1
+             then V.head subqueries
+             else ProductQuery { queryFactors = subqueries }
 
 query :: CharParser Query
 query = composite_query <?> "Expected a query or union of queries"
@@ -143,7 +146,7 @@ query = composite_query <?> "Expected a query or union of queries"
 statement :: CharParser Statement
 statement = do
   q <- query
-  optionMaybe $ char ';'
+  char ';'
   return $ SQuery q
 
 runQueryParser :: T.Text -> Either ParseError Statement

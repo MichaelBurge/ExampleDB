@@ -17,13 +17,16 @@ data Environment = Environment { }
 data BindingContext = BindingContext {
   bindingVariables    :: M.Map T.Text Value,
   bindingPlaceholders :: ArrayOf Value
-  }
+  } deriving (Eq, Show)
 
 nullEnvironment :: Environment
 nullEnvironment = error "TODO: Implement nullEnvironment"
 
 nullContext :: BindingContext
-nullContext = error "TODO: Implement nullContext"
+nullContext = BindingContext {
+  bindingVariables = M.empty,
+  bindingPlaceholders = V.empty
+  }
 
 literalType :: Literal -> Type
 literalType literal = case literal of
@@ -137,7 +140,12 @@ evaluateOneExpression context expression = case expression of
         Just x -> evaluateOneExpression context x
         Nothing -> VNull
   EVariable name -> lookupVariable context name
-  EAggregate _ _ -> error "evaluateOneExpression: Cannot evaluate an aggregate function over a single binding context"
+  EAggregate queryAggregate inner ->
+    let aggregate = aggregateFunctionFromBuiltin queryAggregate
+        innerResult = evaluateOneExpression context inner
+    in aggregateFinalize aggregate $
+       aggregateAccumulate aggregate innerResult $
+       aggregateInitialize aggregate
   EPlaceholder n -> lookupPlaceholder context n
 
 evaluateExpressions :: ArrayOf Expression -> BindingContext -> Record
@@ -154,13 +162,16 @@ transformStreamToBindings stream =
       bindingContexts = map (variablesToContext . M.fromList . V.toList) nameValuePairs
   in bindingContexts
 
+-- | Describes the bindings that are available when evaluating a query, not the
+-- | bindings that result from the query
 resolveQueryBindings :: Environment -> Query -> IO (SetOf BindingContext)
 resolveQueryBindings environment query =
   let mapResults innerQuery = do
         innerStream <- evaluateQuery environment innerQuery
         return $ transformStreamToBindings innerStream
   in case query of
-    SingleQuery { querySource = Nothing } -> return [nullContext]
+    SingleQuery { querySource = Nothing } -> return [ nullContext ]
+
     SingleQuery { querySource = Just innerQuery } -> mapResults innerQuery
     SumQuery { } -> mapResults query
     ProductQuery { } -> mapResults query

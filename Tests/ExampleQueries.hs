@@ -7,7 +7,6 @@ import Database.Toxic.Types
 import Database.Toxic.Query.AST
 import Database.Toxic.Query.Interpreter
 import Database.Toxic.Query.Parser
-import Database.Toxic.Query.Tokenizer
 import qualified Data.Text as T
 import qualified Data.Vector as V
 
