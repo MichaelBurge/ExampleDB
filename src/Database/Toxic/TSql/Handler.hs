@@ -52,8 +52,8 @@ handlerConnect = do
         }
   return (error "handlerConnect: threadId shouldn't be used", initialState)
 
-handlerLoop :: StateT HandlerState IO ()
-handlerLoop = do
+handleActions :: StateT HandlerState IO ()
+handleActions = do
   state <- get
   actions <- lift $ getChanContents $ state ^. handlerAction
   mapM_ handleAction actions

@@ -26,7 +26,10 @@ mkInterpreterState :: IO InterpreterState
 mkInterpreterState = do
   (handlerThread, handlerState) <- handlerConnect
   let chanAction = handlerState ^. handlerAction
+      chanNotify = handlerState ^. handlerNotify
   writeChan chanAction $ ActionSendStartupMessage defaultStartupMessage
+  forkIO $ evalStateT handleActions handlerState
+  forkIO $ handleNotifications chanNotify
   return InterpreterState {
     _interpreterHandlerState = handlerState,
     _interpreterHandlerThread = handlerThread
@@ -38,22 +41,15 @@ interpreterSettings = defaultSettings {
   historyFile = Just ".tsql_history"
   }
 
-handleNotification :: HandlerNotification -> StateT InterpreterState (InputT IO) ()
+handleNotification :: HandlerNotification -> IO ()
 handleNotification notification = case notification of
-  NotificationNetworkSend bs -> lift $ outputStrLn $ "Sent bytes: " ++ show bs
-  NotificationNetworkReceive bs -> lift $ outputStrLn $ "Received bytes: " ++ show bs
+  NotificationNetworkSend bs -> putStrLn $ "Sent bytes: " ++ show bs
+  NotificationNetworkReceive bs -> putStrLn $ "Received bytes: " ++ show bs
 
-handleNotifications :: StateT InterpreterState (InputT IO) ()
-handleNotifications = do
-  state <- get
-  let chan = state ^. interpreterHandlerState ^. handlerNotify
-  notifications <- liftIO $ getChanContents chan
+handleNotifications :: Chan HandlerNotification -> IO ()
+handleNotifications chanNotify = do
+  notifications <- liftIO $ getChanContents chanNotify
   mapM_ handleNotification notifications
-
-runHandler :: StateT InterpreterState (InputT IO) ()
-runHandler = do
-  state <- get
-  liftIO $ evalStateT handlerLoop $ state ^. interpreterHandlerState
 
 runCommand :: Command -> StateT InterpreterState (InputT IO) ()
 runCommand command = case command of
@@ -67,8 +63,6 @@ tsqlMain = do
   where
     loop :: StateT InterpreterState (InputT IO) ()
     loop = do
-      handleNotifications
-      runHandler
       minput <- lift $ getInputLine "> "
       case minput of
         Nothing -> return ()
