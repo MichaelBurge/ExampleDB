@@ -47,10 +47,11 @@ test_query =
         }
       -- Observed from strace'ing psql
       expectedSerialized :: BSL.ByteString
-      expectedSerialized = "Q\0\0\0\16select 5;\0"
+      expectedSerialized = "\x51\x00\x00\x00\x0e\x73\x65\x6c\x65\x63\x74\x20\x35\x3b\x00"
       actualSerialized = runPut $ put message
       unserialized = runGet get actualSerialized
   in do
+    assertEqual "BSL Length" (14 + 1) $ BSL.length expectedSerialized
     assertEqual "put" expectedSerialized actualSerialized
     assertEqual "get" message unserialized
 

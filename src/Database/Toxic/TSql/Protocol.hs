@@ -138,12 +138,14 @@ instance Binary Query where
   get = do
     tag <- getWord8
     size <- getWord32be
-    bs <- getByteString $ fromIntegral size - fromIntegral (2 * sizeOfWord32) + 1
+    bs <- getByteString $ fromIntegral size - fromIntegral (sizeOfWord32) - 1
     null <- getWord8
     return $ Query { queryQuery = bs } 
   put Query { queryQuery = bs } = do
     putWord8 $ fromIntegral $ ord 'Q'
-    putWord32be $ 2 * sizeOfWord32 + (fromIntegral $ BS.length bs) - 1
+    -- size=4 + BS=9 + null terminator=1 = 14 for "select 5;"
+    let size = sizeOfWord32 + (fromIntegral $ BS.length bs) + 1
+    putWord32be size
     putByteString bs
     putWord8 0
              

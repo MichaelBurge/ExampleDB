@@ -3,6 +3,7 @@
 module Database.Toxic.TSql.Parser where
 
 import Control.Applicative
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import Text.Parsec
 
@@ -11,7 +12,7 @@ import Database.Toxic.Query.Parser
 import Database.Toxic.TSql.AST
 
 command :: CharParser Command
-command = CStatement <$> statement
+command = CStatement <$> BS.pack <$> Text.Parsec.many anyToken
 
 runCommandParser :: T.Text -> Either ParseError Command
 runCommandParser text = parse command "runCommandParser" $ T.unpack text

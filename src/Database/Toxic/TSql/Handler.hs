@@ -2,8 +2,12 @@
 
 module Database.Toxic.TSql.Handler where
 
+import Control.Applicative
 import Control.Concurrent
+import Control.Concurrent.STM.TChan
 import Control.Lens
+import Control.Monad.STM
+import Control.Monad.Trans
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import qualified Data.Binary as B
@@ -13,15 +17,14 @@ import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Vector as V
 import Network.Socket hiding (send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
+import System.Posix.Types
 
 import Database.Toxic.TSql.Protocol
 
-maximumMessageSize = 1000;
+maximumMessageSize = 1000
 
 data HandlerState = HandlerState {
-  _handlerSocket   :: Socket,
-  _handlerNotify   :: Chan HandlerNotification,
-  _handlerAction   :: Chan HandlerAction
+  _handlerSocket   :: Socket
   }
 
 data HandlerNotification =
@@ -31,6 +34,7 @@ data HandlerNotification =
 
 data HandlerAction =
     ActionSendStartupMessage StartupMessage
+  | ActionSendQuery BS.ByteString
   deriving (Eq, Show)
 
 makeLenses ''HandlerState
@@ -46,21 +50,16 @@ handlerConnect = do
   notifyChannel <- newChan
   actionChannel <- newChan
   let initialState = HandlerState {
-        _handlerSocket = mySocket,
-        _handlerNotify = notifyChannel,
-        _handlerAction = actionChannel
+        _handlerSocket = mySocket
         }
   return (error "handlerConnect: threadId shouldn't be used", initialState)
 
-handleActions :: StateT HandlerState IO ()
-handleActions = do
-  state <- get
-  actions <- lift $ getChanContents $ state ^. handlerAction
-  mapM_ handleAction actions
-
-handleAction :: HandlerAction -> StateT HandlerState IO ()
-handleAction action = case action of
-  ActionSendStartupMessage startupMessage -> processSendStartupMessage startupMessage
+handleAction :: HandlerState -> HandlerAction -> IO ()
+handleAction state action = case action of
+  ActionSendStartupMessage startupMessage ->
+    processSendStartupMessage state startupMessage
+  ActionSendQuery query ->
+    processSendQuery state query
 
 defaultStartupMessage :: StartupMessage
 defaultStartupMessage = StartupMessage {
@@ -73,30 +72,35 @@ defaultStartupMessage = StartupMessage {
      ]
   }
 
-handlerSend :: BS.ByteString -> StateT HandlerState IO ()
-handlerSend message = do
-  state <- get
-  let notifyChannel = state ^. handlerNotify
-      socket = state ^. handlerSocket
-  lift $ do
-    writeChan notifyChannel $ NotificationNetworkSend message
-    send socket message
-    return ()
+handlerSend :: HandlerState -> BS.ByteString -> IO ()
+handlerSend state message = do
+  let socket = state ^. handlerSocket
+  putStrLn $ "Sent message: " ++ show message
+  send socket message
+  return ()
 
-handlerReceive :: StateT HandlerState IO BS.ByteString
-handlerReceive = do
-  state <- get
-  let notifyChannel = state ^. handlerNotify
-      socket = state ^. handlerSocket
-  lift $ do
-    message <- recv socket maximumMessageSize
-    writeChan notifyChannel $ NotificationNetworkReceive message
-    return message
+waitOnSocket socket = do
+  putStrLn "Waiting on socket"
+  threadWaitRead $Fd $ fdSocket socket
 
-processSendStartupMessage :: StartupMessage -> StateT HandlerState IO ()
-processSendStartupMessage startupMessage = do
-  state <- get
+handlerReceive :: HandlerState -> IO BS.ByteString
+handlerReceive state = do
+  let socket = state ^. handlerSocket
+  waitOnSocket socket
+  message <- recv socket maximumMessageSize
+  putStrLn $ "Received message: " ++ show message
+  return message
+
+processSendStartupMessage :: HandlerState -> StartupMessage -> IO ()
+processSendStartupMessage state startupMessage = do
   let message = startupMessage
       serializedMessage = BSL.toStrict $ B.runPut $ B.put message
-  handlerSend serializedMessage
-  handlerReceive >> return ()
+  handlerSend state serializedMessage
+  handlerReceive state >> return ()
+
+processSendQuery :: HandlerState -> BS.ByteString -> IO ()
+processSendQuery state message = do
+  let query = Query { queryQuery = message }
+      serializedMessage = BSL.toStrict $ B.runPut $ B.put query
+  handlerSend state serializedMessage
+  handlerReceive state >> return ()

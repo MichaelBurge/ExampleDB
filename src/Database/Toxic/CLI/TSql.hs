@@ -7,6 +7,7 @@ import Control.Lens
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import System.Console.Haskeline
 
@@ -25,11 +26,7 @@ makeLenses ''InterpreterState
 mkInterpreterState :: IO InterpreterState
 mkInterpreterState = do
   (handlerThread, handlerState) <- handlerConnect
-  let chanAction = handlerState ^. handlerAction
-      chanNotify = handlerState ^. handlerNotify
-  writeChan chanAction $ ActionSendStartupMessage defaultStartupMessage
-  forkIO $ evalStateT handleActions handlerState
-  forkIO $ handleNotifications chanNotify
+  handleAction handlerState $ ActionSendStartupMessage defaultStartupMessage
   return InterpreterState {
     _interpreterHandlerState = handlerState,
     _interpreterHandlerThread = handlerThread
@@ -51,9 +48,15 @@ handleNotifications chanNotify = do
   notifications <- liftIO $ getChanContents chanNotify
   mapM_ handleNotification notifications
 
+sendAction :: HandlerAction -> StateT InterpreterState (InputT IO) ()
+sendAction action = do
+  state <- get
+  let handlerState = state ^. interpreterHandlerState
+  liftIO $ handleAction handlerState action
+
 runCommand :: Command -> StateT InterpreterState (InputT IO) ()
 runCommand command = case command of
-  CStatement statement -> lift $ outputStrLn $ "Received command: " ++ show command
+  CStatement text -> sendAction $ ActionSendQuery text
 
 tsqlMain :: IO ()
 tsqlMain = do
@@ -68,9 +71,10 @@ tsqlMain = do
         Nothing -> return ()
         Just "\\q" -> return ()
         Just input -> do
-          case runCommandParser $ T.pack input of
-            Left parse_error -> lift $ outputStrLn $
-                                "Parse error: " ++ show parse_error
-            Right command -> runCommand command
+          runCommand $ CStatement $ BS.pack input
+          -- case runCommandParser $ T.pack input of
+          --   Left parse_error -> lift $ outputStrLn $
+          --                       "Parse error: " ++ show parse_error
+          --   Right command -> runCommand command
           
           loop
