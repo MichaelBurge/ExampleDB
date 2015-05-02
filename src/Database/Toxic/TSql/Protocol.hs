@@ -6,6 +6,7 @@ import Data.Binary.Put
 import Data.Bits
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import Data.Char
 import Data.Word
 import qualified Data.Vector as V
 
@@ -132,6 +133,20 @@ data PortalSuspended = PortalSuspended deriving (Eq, Show)
 data Query = Query {
   queryQuery :: BS.ByteString
   } deriving (Eq, Show)
+
+instance Binary Query where
+  get = do
+    tag <- getWord8
+    size <- getWord32be
+    bs <- getByteString $ fromIntegral size - fromIntegral (2 * sizeOfWord32) + 1
+    null <- getWord8
+    return $ Query { queryQuery = bs } 
+  put Query { queryQuery = bs } = do
+    putWord8 $ fromIntegral $ ord 'Q'
+    putWord32be $ 2 * sizeOfWord32 + (fromIntegral $ BS.length bs) - 1
+    putByteString bs
+    putWord8 0
+             
 data ReadyForQuery = ReadyForQuery {
   readyForQueryStatus :: Word8
   } deriving (Eq, Show)

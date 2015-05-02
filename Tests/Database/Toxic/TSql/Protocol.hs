@@ -40,7 +40,22 @@ test_startup_message =
      assertEqual "put" expectedSerialized actualSerialized
      assertEqual "get" message unserialized
 
+test_query :: Assertion
+test_query =
+  let message = Query {
+        queryQuery = "select 5;"
+        }
+      -- Observed from strace'ing psql
+      expectedSerialized :: BSL.ByteString
+      expectedSerialized = "Q\0\0\0\16select 5;\0"
+      actualSerialized = runPut $ put message
+      unserialized = runGet get actualSerialized
+  in do
+    assertEqual "put" expectedSerialized actualSerialized
+    assertEqual "get" message unserialized
+
 protocolTests =
   testGroup "Protocol" [
-    testCase "Startup message" test_startup_message
+    testCase "Startup message" test_startup_message,
+    testCase "Query" test_query
     ]
