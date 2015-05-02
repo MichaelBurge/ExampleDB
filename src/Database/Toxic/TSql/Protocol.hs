@@ -1,5 +1,6 @@
 module Database.Toxic.TSql.Protocol where
 
+import Control.Applicative
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
@@ -221,4 +222,15 @@ data Terminate = Terminate deriving (Eq, Show)
 sizeOfWord32 :: Word32
 sizeOfWord32 = 4
 
+data AnyMessage =
+    MStartupMessage StartupMessage
+  | MQuery Query
+  deriving (Eq, Show)
 
+instance Binary AnyMessage where
+  get =
+        (MStartupMessage <$> get)
+    <|> (MQuery <$> get)
+  put x = case x of
+    MStartupMessage x -> put x
+    MQuery x -> put x

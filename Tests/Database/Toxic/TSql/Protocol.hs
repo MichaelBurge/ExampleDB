@@ -36,9 +36,15 @@ test_startup_message =
       actualSerialized = runPut $ put message
       unserialized :: StartupMessage
       unserialized = runGet get actualSerialized
+
+      anyMessage = MStartupMessage message
+      serializedAnyMessage = runPut $ put anyMessage :: BSL.ByteString
+      unserializedMessage = runGet get expectedSerialized :: AnyMessage
   in do
      assertEqual "put" expectedSerialized actualSerialized
      assertEqual "get" message unserialized
+     assertEqual "put message" expectedSerialized serializedAnyMessage
+     assertEqual "get message" anyMessage unserializedMessage
 
 test_query :: Assertion
 test_query =
