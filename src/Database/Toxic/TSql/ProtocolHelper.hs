@@ -31,7 +31,16 @@ serializeType TInt =
   _rowDescriptionFieldModifier = fromIntegral $ -1,
   _rowDescriptionFieldFormatCode = 0 -- text
   }
-
+serializeType TUnknown =
+  RowDescriptionField {
+    _rowDescriptionFieldName = error "serializeType: No name given",
+    _rowDescriptionFieldOid = 0,
+    _rowDescriptionFieldAttributeNumber = 0,
+    _rowDescriptionFieldDataType = 0, -- unknown
+    _rowDescriptionFieldSize = fromIntegral $ -2,
+    _rowDescriptionFieldModifier = fromIntegral $ -1,
+    _rowDescriptionFieldFormatCode = 0 -- text
+    }
 serializeColumn :: Column -> RowDescriptionField
 serializeColumn column =
   (serializeType $ columnType column)

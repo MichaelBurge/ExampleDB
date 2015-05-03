@@ -231,9 +231,48 @@ data Describe = Describe {
   } deriving (Eq, Show)
 data EmptyQueryResponse = EmptyQueryResponse deriving (Eq, Show)
 data ErrorResponse = ErrorResponse {
-  errorResponseTypes :: V.Vector Word8,
-  errorResponseValues :: V.Vector BS.ByteString
+  errorResponseTypesAndValues :: V.Vector (Word8, BS.ByteString)
   } deriving (Eq, Show)
+
+instance Binary ErrorResponse where
+  get =
+    let getOneResponse :: Get (Maybe (Word8, BS.ByteString))
+        getOneResponse = do
+          indicator <- getWord8
+          if indicator == 0
+            then return Nothing
+            else do
+              bs <- BSL.toStrict <$> getLazyByteStringNul
+              return $ Just (indicator, bs)
+        getResponses :: Get [(Word8, BS.ByteString)]
+        getResponses = do
+          mResponse <- getOneResponse
+          case mResponse of
+            Just response -> (:) response <$> getResponses
+            Nothing -> return []
+    in do
+      getWord8Assert (== ord 'E') "ErrorResponse::get: Incorrect tag"
+      getWord32be
+      responses <- getResponses
+      return ErrorResponse {
+        errorResponseTypesAndValues = V.fromList responses
+        }
+  put errorResponse =
+    let putOneResponse (indicator, bs) = do
+          putWord8 indicator
+          putByteString bs
+          putWord8 0
+        putResponses :: [(Word8, BS.ByteString)] -> Put
+        putResponses responses = forM_ responses putOneResponse
+    in do
+      let responses = V.toList $ errorResponseTypesAndValues errorResponse
+          responsesBs = runPut $ putResponses responses
+          size = sizeOfWord32 + (fromIntegral $ BSL.length responsesBs) + 1
+      putWord8 $ fromIntegral $ ord 'E'
+      putWord32be $ fromIntegral size
+      putLazyByteString responsesBs
+      putWord8 0
+
 data Execute = Execute {
   executeName :: BS.ByteString,
   executeMaxNumRows :: Word32
@@ -439,6 +478,7 @@ data AnyMessage =
   | MDataRow DataRow
   | MClose Close
   | MCommandComplete CommandComplete
+  | MErrorResponse ErrorResponse
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -452,7 +492,8 @@ instance Binary AnyMessage where
     <|> (MRowDescription <$> get)
     <|> (MDataRow <$> get)
     <|> (MClose <$> get)
-    <|> (MCommandComplete <$> get)    
+    <|> (MCommandComplete <$> get)
+    <|> (MErrorResponse <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
@@ -464,3 +505,4 @@ instance Binary AnyMessage where
     MDataRow x -> put x
     MClose x -> put x
     MCommandComplete x -> put x
+    MErrorResponse x -> put x

@@ -134,6 +134,24 @@ test_command_complete =
       expectedSerialized = "\x43\x00\x00\x00\x0d\x53\x45\x4c\x45\x43\x54\x20\x31\x00"
   in assertSerialization message expectedSerialized
 
+test_error_response :: Assertion
+test_error_response =
+  let message = MErrorResponse ErrorResponse {
+        errorResponseTypesAndValues = V.fromList $
+                                   Prelude.map (\(x,y) -> (fromIntegral $ ord x, y)) [
+           ('S', "ERROR"),
+           ('C', "42703"),
+           ('M', "column \"derp\" does not exist"),
+           ('P', "8"),
+           ('F', "parse_relation.c"),
+           ('L', "2892"),
+           ('R', "errorMissingColumn")
+           ]
+        }
+      -- From strace'ing psql
+      expectedSerialized = "E\0\0\0`SERROR\0C42703\0Mcolumn \"derp\" does not exist\0P8\0Fparse_relation.c\0L2892\0RerrorMissingColumn\0\0"
+  in assertSerialization message expectedSerialized
+
 protocolTests =
   testGroup "Protocol" [
     testCase "Startup message" test_startup_message,
@@ -145,5 +163,6 @@ protocolTests =
     testCase "Row Description" test_row_description,
     testCase "Data Row" test_data_row,
     testCase "Close" test_close,
-    testCase "Command Complete" test_command_complete
+    testCase "Command Complete" test_command_complete,
+    testCase "Error Response" test_error_response
     ]
