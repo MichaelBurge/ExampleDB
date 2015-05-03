@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell,OverloadedStrings #-}
 
 module Database.Toxic.CLI.TSqlD where
 
@@ -53,6 +53,19 @@ serverSendMessage message = do
 handleStartupMessage :: StartupMessage -> StateT SessionState IO ()
 handleStartupMessage message = do
   serverSendMessage $ MAuthenticationOk AuthenticationOk
+  let sendParameter name value =
+        serverSendMessage $ MParameterStatus $ ParameterStatus name value
+  sendParameter "application_name" "psql"
+  sendParameter "client_encoding" "UTF8"
+  sendParameter "DateStyle" "ISO, MDY"
+  sendParameter "integer_datetimes" "on"
+  sendParameter "IntervalStyle" "postgres"
+  sendParameter "is_superuser" "on"
+  sendParameter "server_encoding" "UTF8"
+  sendParameter "server_version" "9.4.1"
+  sendParameter "session_authorization" "mburge"
+  sendParameter "standard_conforming_strings" "on"
+  sendParameter "TimeZone" "localtime"
 
 handleQuery :: Query -> StateT SessionState IO ()
 handleQuery query = return ()
