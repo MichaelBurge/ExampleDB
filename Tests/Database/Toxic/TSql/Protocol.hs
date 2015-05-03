@@ -55,6 +55,7 @@ test_query =
 test_authentication_ok :: Assertion
 test_authentication_ok =
   let message = MAuthenticationOk AuthenticationOk
+      -- From strace'ing psql
       expectedSerialized :: BSL.ByteString
       expectedSerialized = "\x52\x00\x00\x00\x08\x00\x00\x00\x00"
   in assertSerialization message expectedSerialized
@@ -65,6 +66,7 @@ test_parameter_status =
         parameterStatusName = "application_name",
         parameterStatusValue = "psql"
         }
+      -- From strace'ing psql
       expectedSerialized = "\x53\x00\x00\x00\x1a\x61\x70\x70\x6c\x69\x63\x61\x74\x69\x6f\x6e\x5f\x6e\x61\x6d\x65\x00\x70\x73\x71\x6c\x00"
   in assertSerialization message expectedSerialized
 
@@ -74,6 +76,7 @@ test_backend_key_data =
         backendKeyDataProcessId = 13143,
         backendKeyDataSecretKey = 677778168
         }
+      -- From strace'ing psql
       expectedSerialized :: BSL.ByteString
       expectedSerialized = "\x4b\x00\x00\x00\x0c\x00\x00\x33\x57\x28\x66\x12\xf8"
   in assertSerialization message expectedSerialized
@@ -83,6 +86,7 @@ test_ready_for_query =
   let message = MReadyForQuery ReadyForQuery {
         readyForQueryStatus = fromIntegral $ ord 'I'
         }
+      -- From strace'ing psql
       expectedSerialized = "\x5a\x00\x00\x00\x05\x49"
   in assertSerialization message expectedSerialized
 
@@ -99,6 +103,7 @@ test_row_description =
            rowDescriptionFieldFormatCode = 0 -- text
            }
         }
+      -- From strace'ing psql
       expectedSerialized = "\x54\x00\x00\x00\x21\x00\x01\x3f\x63\x6f\x6c\x75\x6d\x6e\x3f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x17\x00\x04\xff\xff\xff\xff\x00\x00"
   in assertSerialization message expectedSerialized
 
@@ -107,6 +112,7 @@ test_data_row =
   let message = MDataRow DataRow {
         dataRowValues = V.singleton $ Just "5"
         }
+      -- From strace'ing psql
       expectedSerialized = "\x44\x00\x00\x00\x0b\x00\x01\x00\x00\x00\x01\x35"
   in assertSerialization message expectedSerialized
 
@@ -116,6 +122,15 @@ test_close =
         closeChooseStatementOrPortal = fromIntegral $ ord 'S',
         closeName = "SELECT 1"
       }
+      expectedSerialized = "\x43\x00\x00\x00\x0d\x53\x53\x45\x4c\x45\x43\x54\x20\x31\x00"
+  in assertSerialization message expectedSerialized
+
+test_command_complete :: Assertion
+test_command_complete =
+  let message = MCommandComplete CommandComplete {
+        commandCompleteTag = "SELECT 1"
+        }
+      -- From strace'ing psql
       expectedSerialized = "\x43\x00\x00\x00\x0d\x53\x45\x4c\x45\x43\x54\x20\x31\x00"
   in assertSerialization message expectedSerialized
 
@@ -128,5 +143,7 @@ protocolTests =
     testCase "Backend Key Data" test_backend_key_data,
     testCase "Ready For Query" test_ready_for_query,
     testCase "Row Description" test_row_description,
-    testCase "Data Row" test_data_row
+    testCase "Data Row" test_data_row,
+    testCase "Close" test_close,
+    testCase "Command Complete" test_command_complete
     ]

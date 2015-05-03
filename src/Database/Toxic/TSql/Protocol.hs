@@ -123,13 +123,48 @@ data Close = Close {
   } deriving (Eq, Show)
 
 instance Binary Close where
-  get = undefined
-  put = undefined
+  get = do
+    getWord8Assert (== ord 'C') "Close::get: Incorrect tag"
+    actualSize <- getWord32be
+    choice <- getWord8
+    name <- getLazyByteStringNul
+    let expectedSize = sizeOfWord32 + 1 + (fromIntegral $ BSL.length name)
+    unless (actualSize == expectedSize) $ fail "Close::get: Incorrect size"
+    return Close {
+      closeChooseStatementOrPortal = choice,
+      closeName = BSL.toStrict name
+      }
+  put close = do
+    putWord8 $ fromIntegral $ ord 'C'
+    let size = sizeOfWord32 + 1 + (fromIntegral $ BS.length (closeName close))
+    putWord32be size
+    putWord8 $ closeChooseStatementOrPortal close
+    putByteString $ closeName close
+    putWord8 0
              
 data CloseComplete = CloseComplete deriving (Eq, Show)
 data CommandComplete = CommandComplete {
   commandCompleteTag :: BS.ByteString
   } deriving (Eq, Show)
+             
+instance Binary CommandComplete where
+  get = do
+    getWord8Assert (== ord 'C') "CommandComplete::get: Incorrect tag"
+    actualSize <- getWord32be
+    tag <- BSL.toStrict <$> getLazyByteStringNul
+    let expectedSize = sizeOfWord32 + (fromIntegral $ BS.length tag) + 1
+    unless (actualSize == expectedSize) $ fail "CommandComplete::get: Incorrect size"
+    return CommandComplete {
+      commandCompleteTag = tag
+      }
+  put commandComplete = do
+    putWord8 $ fromIntegral $ ord 'C'
+    let tag = commandCompleteTag commandComplete
+        size = sizeOfWord32 + 1 + (fromIntegral $ BS.length tag)
+    putWord32be size
+    putByteString tag
+    putWord8 0
+             
 data CopyData = CopyData {
   copyDataData :: BS.ByteString
   } deriving (Eq, Show)
@@ -398,6 +433,7 @@ data AnyMessage =
   | MRowDescription RowDescription
   | MDataRow DataRow
   | MClose Close
+  | MCommandComplete CommandComplete
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -411,6 +447,7 @@ instance Binary AnyMessage where
     <|> (MRowDescription <$> get)
     <|> (MDataRow <$> get)
     <|> (MClose <$> get)
+    <|> (MCommandComplete <$> get)    
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
@@ -421,3 +458,4 @@ instance Binary AnyMessage where
     MRowDescription x -> put x
     MDataRow x -> put x
     MClose x -> put x
+    MCommandComplete x -> put x
