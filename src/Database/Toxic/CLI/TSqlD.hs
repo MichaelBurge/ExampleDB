@@ -14,6 +14,7 @@ import Data.Binary.Get
 import Data.Binary.Put
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import Data.Char
 import Network.Socket hiding (send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
 import System.Directory
@@ -70,6 +71,10 @@ handleStartupMessage message = do
     backendKeyDataProcessId = 0,
     backendKeyDataSecretKey = 0
     }
+  serverSendMessage $ MReadyForQuery ReadyForQuery {
+    readyForQueryStatus = fromIntegral $ ord 'I'
+    }
+
 handleQuery :: Query -> StateT SessionState IO ()
 handleQuery query = return ()
 
