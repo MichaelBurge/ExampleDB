@@ -121,6 +121,11 @@ data Close = Close {
   closeChooseStatementOrPortal :: Word8,
   closeName :: BS.ByteString
   } deriving (Eq, Show)
+
+instance Binary Close where
+  get = undefined
+  put = undefined
+             
 data CloseComplete = CloseComplete deriving (Eq, Show)
 data CommandComplete = CommandComplete {
   commandCompleteTag :: BS.ByteString
@@ -145,8 +150,41 @@ data CopyBothResponse = CopyBothResponse {
   copyBothResponseColumns :: V.Vector Word16
   } deriving (Eq, Show)
 data DataRow = DataRow {
-  dataRowValues :: V.Vector BS.ByteString
+  dataRowValues :: V.Vector (Maybe BS.ByteString)
   } deriving (Eq, Show)
+
+instance Binary DataRow where
+  get =
+    let getValue :: Get (Maybe BS.ByteString)
+        getValue = do
+          length <- fromIntegral <$> getWord32be
+          if length == (fromIntegral $ -1)
+             then return Nothing
+             else Just <$> getByteString length
+    in do
+      getWord8Assert (== ord 'D') "DataRow::get: Incorrect tag"
+      getWord32be
+      numValues <- fromIntegral <$> getWord16be
+      values <- V.fromList <$> replicateM numValues getValue
+      return DataRow {
+        dataRowValues = values
+        }
+  put dataRow =
+    let putValue :: Maybe BS.ByteString -> Put
+        putValue Nothing = putWord32be $ fromIntegral $ -1
+        putValue (Just bs) = do
+          putWord32be $ fromIntegral $ BS.length bs
+          putByteString bs
+    in do
+      putWord8 $ fromIntegral $ ord 'D'
+      let valuesBs = runPut $
+                     forM_ (V.toList $ dataRowValues dataRow) $
+                     putValue
+          size = sizeOfWord32 + sizeOfWord16 + (fromIntegral $ BSL.length valuesBs)
+      putWord32be $ fromIntegral size
+      putWord16be $ fromIntegral $ V.length $ dataRowValues dataRow
+      putLazyByteString valuesBs
+             
 data Describe = Describe {
   describeChooseStatementOrPortal :: Word8,
   describeName :: BS.ByteString
@@ -358,6 +396,8 @@ data AnyMessage =
   | MBackendKeyData BackendKeyData
   | MReadyForQuery ReadyForQuery
   | MRowDescription RowDescription
+  | MDataRow DataRow
+  | MClose Close
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -369,6 +409,8 @@ instance Binary AnyMessage where
     <|> (MBackendKeyData <$> get)
     <|> (MReadyForQuery <$> get)
     <|> (MRowDescription <$> get)
+    <|> (MDataRow <$> get)
+    <|> (MClose <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
@@ -377,3 +419,5 @@ instance Binary AnyMessage where
     MBackendKeyData x -> put x
     MReadyForQuery x -> put x
     MRowDescription x -> put x
+    MDataRow x -> put x
+    MClose x -> put x

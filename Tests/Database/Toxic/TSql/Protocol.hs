@@ -102,7 +102,22 @@ test_row_description =
       expectedSerialized = "\x54\x00\x00\x00\x21\x00\x01\x3f\x63\x6f\x6c\x75\x6d\x6e\x3f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x17\x00\x04\xff\xff\xff\xff\x00\x00"
   in assertSerialization message expectedSerialized
 
-expectedSerialized = "\x44\x00\x00\x00\x0b\x00\x01\x00\x00\x00\x01\x35\x43\x00\x00\x00\x0d\x53\x45\x4c\x45\x43\x54\x20\x31\x00\x5a\x00\x00\x00\x05\x49"
+test_data_row :: Assertion
+test_data_row =
+  let message = MDataRow DataRow {
+        dataRowValues = V.singleton $ Just "5"
+        }
+      expectedSerialized = "\x44\x00\x00\x00\x0b\x00\x01\x00\x00\x00\x01\x35"
+  in assertSerialization message expectedSerialized
+
+test_close :: Assertion
+test_close =
+  let message = MClose Close {
+        closeChooseStatementOrPortal = fromIntegral $ ord 'S',
+        closeName = "SELECT 1"
+      }
+      expectedSerialized = "\x43\x00\x00\x00\x0d\x53\x45\x4c\x45\x43\x54\x20\x31\x00"
+  in assertSerialization message expectedSerialized
 
 protocolTests =
   testGroup "Protocol" [
@@ -112,5 +127,6 @@ protocolTests =
     testCase "Parameter Status" test_parameter_status,
     testCase "Backend Key Data" test_backend_key_data,
     testCase "Ready For Query" test_ready_for_query,
-    testCase "Row Description" test_row_description
+    testCase "Row Description" test_row_description,
+    testCase "Data Row" test_data_row
     ]
