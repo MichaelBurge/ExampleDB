@@ -1,6 +1,7 @@
 module Database.Toxic.TSql.Protocol where
 
 import Control.Applicative
+import Control.Monad
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
@@ -23,6 +24,22 @@ data RowDescriptionField = RowDescriptionField {
 
 -- | http://www.postgresql.org/docs/9.2/static/protocol-message-formats.html
 data AuthenticationOk = AuthenticationOk deriving (Eq, Show)
+
+instance Binary AuthenticationOk where
+  get = isolate 9 $ do
+    identifier <- getWord8
+    unless (identifier == (fromIntegral $ ord 'R')) $
+      fail "AuthenticationOk::get: Bad identifier"
+    length <- getWord32be
+    unless (length == 8) $ fail "AuthenticationOk::get: Bad length"
+    indicator <- getWord32be
+    unless (indicator == 0) $ fail "AuthenticationOk::get: Bad specifier"
+    return AuthenticationOk
+  put x = do
+    putWord8 $ fromIntegral $ ord 'R'
+    putWord32be 8
+    putWord32be 0
+
 data AuthenticationKerberosV5 = AuthenticationKerberosV5 deriving (Eq, Show)
 data AuthenticationCleartextPassword = AuthenticationCleartextPassword deriving (Eq, Show)
 data AuthenticationMD5Password = AuthenticationMD5Password {
@@ -225,12 +242,17 @@ sizeOfWord32 = 4
 data AnyMessage =
     MStartupMessage StartupMessage
   | MQuery Query
+  | MAuthenticationOk AuthenticationOk
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
   get =
         (MStartupMessage <$> get)
+    <|> (MAuthenticationOk <$> get)
     <|> (MQuery <$> get)
   put x = case x of
-    MStartupMessage x -> put x
+    MAuthenticationOk x -> put x
     MQuery x -> put x
+    MStartupMessage x -> put x
+
+
