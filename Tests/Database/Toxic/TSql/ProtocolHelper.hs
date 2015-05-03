@@ -40,9 +40,6 @@ test_int4_stream =
           },
         MCommandComplete CommandComplete {
           commandCompleteTag = "SELECT 1"
-          },
-        MReadyForQuery ReadyForQuery {
-          readyForQueryStatus = fromIntegral $ ord 'I'
           }
         ]
   in assertEqual "" expectedMessages actualMessages
