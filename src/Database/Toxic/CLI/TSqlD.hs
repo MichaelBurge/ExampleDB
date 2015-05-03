@@ -20,7 +20,7 @@ serverConnect = do
   let family = AF_UNIX
       socketType = Stream
       protocolNumber = defaultProtocol
-      address = SockAddrUnix "/tmp/tsqld"
+      address = SockAddrUnix "/home/mburge/tmp/.s.PGSQL.5432"
   mySocket <- socket family socketType protocolNumber
   bindSocket mySocket address
   listen mySocket 1
