@@ -72,9 +72,24 @@ test_authentication_ok =
     assertEqual "put" expectedSerialized actualSerialized
     assertEqual "get" message unserialized
 
+test_parameter_status :: Assertion
+test_parameter_status =
+  let message = MParameterStatus ParameterStatus {
+        parameterStatusName = "application_name",
+        parameterStatusValue = "psql"
+        }
+      expectedSerialized :: BSL.ByteString
+      expectedSerialized = "\x53\x00\x00\x00\x1a\x61\x70\x70\x6c\x69\x63\x61\x74\x69\x6f\x6e\x5f\x6e\x61\x6d\x65\x00\x70\x73\x71\x6c\x00"
+      actualSerialized = encode message
+      unserialized = decode actualSerialized
+  in do
+    assertEqual "put" expectedSerialized actualSerialized
+    assertEqual "get" message unserialized
+
 protocolTests =
   testGroup "Protocol" [
     testCase "Startup message" test_startup_message,
     testCase "Query" test_query,
-    testCase "Authentication Ok" test_authentication_ok
+    testCase "Authentication Ok" test_authentication_ok,
+    testCase "Parameter Status" test_parameter_status
     ]

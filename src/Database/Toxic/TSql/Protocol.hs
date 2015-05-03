@@ -12,6 +12,17 @@ import Data.Char
 import Data.Word
 import qualified Data.Vector as V
 
+getAssert :: Get a -> (a -> Bool) -> String -> Get a
+getAssert parser condition message = do
+  x <- parser
+  unless (condition x) $ fail message
+  return x
+
+getWord8Assert :: Integral a => (a -> Bool) -> String -> Get a
+getWord8Assert condition name =
+  let newCondition x = condition $ fromIntegral x
+  in fromIntegral <$> getAssert getWord8 newCondition name
+
 data RowDescriptionField = RowDescriptionField {
   rowDescriptionFieldName :: BS.ByteString,
   rowDescriptionFieldOid :: Word32,
@@ -138,6 +149,33 @@ data ParameterStatus = ParameterStatus {
   parameterStatusName :: BS.ByteString,
   parameterStatusValue :: BS.ByteString
   } deriving (Eq, Show)
+
+instance Binary ParameterStatus where
+  get = do
+    getAssert getWord8 (== fromIntegral (ord 'S')) "ParameterStatus::get: Incorrect identifier"
+    length <- getWord32be
+    name <- getLazyByteStringNul
+    value <- getLazyByteStringNul
+    return ParameterStatus {
+      parameterStatusName = BSL.toStrict name,
+      parameterStatusValue = BSL.toStrict value
+      }
+  put x = do
+    putWord8 $ fromIntegral $ ord 'S'
+    let name = parameterStatusName x
+        value = parameterStatusValue x
+        size = fromIntegral $
+               BS.length name +
+               BS.length value +
+               2 + -- null bytes for name and value
+               fromIntegral sizeOfWord32 -- Size of size field
+    putWord32be size
+    putByteString name
+    putWord8 0
+    putByteString value
+    putWord8 0
+    
+             
 data Parse = Parse {
   parseDestination :: BS.ByteString,
   parseQuery :: BS.ByteString,
@@ -154,7 +192,7 @@ data Query = Query {
 
 instance Binary Query where
   get = do
-    tag <- getWord8
+    tag <- getWord8Assert (== ord 'Q') "Query::get::tag"
     size <- getWord32be
     bs <- getByteString $ fromIntegral size - fromIntegral (sizeOfWord32) - 1
     null <- getWord8
@@ -243,6 +281,7 @@ data AnyMessage =
     MStartupMessage StartupMessage
   | MQuery Query
   | MAuthenticationOk AuthenticationOk
+  | MParameterStatus ParameterStatus
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -250,9 +289,11 @@ instance Binary AnyMessage where
         (MStartupMessage <$> get)
     <|> (MAuthenticationOk <$> get)
     <|> (MQuery <$> get)
+    <|> (MParameterStatus <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
     MStartupMessage x -> put x
+    MParameterStatus x -> put x
 
 
