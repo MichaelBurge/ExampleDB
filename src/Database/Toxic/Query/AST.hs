@@ -1,10 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable,DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable,DeriveGeneric,TemplateHaskell #-}
 module Database.Toxic.Query.AST where
 
 import GHC.Generics
 import Control.DeepSeq
 
 import Control.Exception
+import Control.Lens
+import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Typeable
 import qualified Data.Vector as V
@@ -71,6 +73,15 @@ data TableSpec = TableSpec {
   tableSpecColumns :: ArrayOf Column
   } deriving (Eq, Show)
 
+data Table = Table {
+  tableName :: T.Text,
+  tableSpec :: TableSpec
+  } deriving (Eq, Show)
+
+data Environment = Environment {
+  _environmentTables :: M.Map T.Text Table
+   } deriving (Eq, Show)
+
 data Statement =
     SQuery Query
   | SCreateTable T.Text TableSpec
@@ -84,10 +95,15 @@ data QueryError =
 instance Exception QueryError
 instance NFData QueryError
 
-singleton_statement :: Expression -> Statement
-singleton_statement expression = SQuery $ SingleQuery {
+makeLenses ''Environment
+
+singleton_query :: Expression -> Query
+singleton_query expression = SingleQuery {
   queryGroupBy = Nothing,
   queryProject = V.singleton expression,
   querySource = Nothing,
   queryOrderBy = Nothing
   }
+
+singleton_statement :: Expression -> Statement
+singleton_statement = SQuery . singleton_query

@@ -4,3 +4,4 @@ dist/
 *~
 .tsql_history
 tmp/*
+*.txt

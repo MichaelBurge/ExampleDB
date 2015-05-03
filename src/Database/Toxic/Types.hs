@@ -46,12 +46,6 @@ data Stream = Stream {
   } deriving (Eq, Show, Generic)
 instance NFData Stream where rnf = genericRnf
 
-data Table = Table {
-  tableName   :: T.Text,
-  tableStream :: Stream
-  } deriving (Eq, Show)
-
-
 data QuerySumOperation =
   QuerySumUnionAll
   deriving (Eq, Show)

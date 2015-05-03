@@ -12,11 +12,12 @@ import Control.Applicative
 import Control.DeepSeq
 import Control.DeepSeq.Generics
 import Control.Exception
+import Control.Lens
+import Control.Monad.Trans
+import Control.Monad.Trans.State
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V
-
-data Environment = Environment { }
 
 data BindingContext = BindingContext {
   bindingVariables    :: M.Map T.Text Value,
@@ -24,7 +25,9 @@ data BindingContext = BindingContext {
   } deriving (Eq, Show)
 
 nullEnvironment :: Environment
-nullEnvironment = error "TODO: Implement nullEnvironment"
+nullEnvironment = Environment {
+  _environmentTables = M.empty
+  }
 
 nullContext :: BindingContext
 nullContext = BindingContext {
@@ -369,6 +372,10 @@ evaluateUnionAllQuery environment queries =
 
 concatMapM f l = fmap concat (mapM f l)
 
+createTable :: Environment -> Table -> IO Environment
+createTable environment table =
+  return $ (environment & environmentTables %~ M.insert (tableName table) table)
+
 evaluateProductQuery :: Environment -> ArrayOf Query -> IO Stream
 evaluateProductQuery environment queries =
   let header = V.empty
@@ -401,7 +408,19 @@ executeQuery environment query =
         deepseq results $ return (Right results)
   in catch computation handleError
 
-execute :: Environment -> Statement -> IO Stream
-execute environment statement = case statement of
-  SQuery query -> evaluateQuery environment query
+execute :: Statement -> StateT Environment IO Stream
+execute statement = do
+  environment <- get
+  case statement of
+    SQuery query -> lift $ evaluateQuery environment query
+    SCreateTable name spec ->
+      let table = Table {
+            tableName = name,
+            tableSpec = spec
+            }
+      in do
+        newEnvironment <- lift $ createTable environment table
+        put newEnvironment
+        return nullStream
+        
 

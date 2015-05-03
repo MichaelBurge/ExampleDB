@@ -150,7 +150,7 @@ serverHandler (clientHandle, clientAddress) = do
   let initialState = SessionState {
         _sessionClientSocket = clientHandle,
         _sessionStateMessage = runGetIncremental B.get,
-        _sessionEnvironment = Environment { },
+        _sessionEnvironment = nullEnvironment,
         _sessionExit = False
         }
   evalStateT loop initialState

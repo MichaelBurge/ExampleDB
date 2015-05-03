@@ -2,6 +2,8 @@
 
 module Tests.ExampleQueries (exampleQueriesTests) where
 
+import Control.Monad.Trans.State
+
 import Database.Toxic.Streams
 import Database.Toxic.Types
 import Database.Toxic.Query.AST
@@ -19,7 +21,7 @@ import Test.QuickCheck
 assertQueryResults :: Environment -> T.Text -> Stream -> Assertion
 assertQueryResults environment query expectedStream = do
   let statement = unsafeRunQueryParser query
-  actualStream <- execute environment statement
+  actualStream <- evalStateT (execute statement) environment
   assertEqual "assertQueryResults" expectedStream actualStream
 
 test_booleanSelect :: Assertion

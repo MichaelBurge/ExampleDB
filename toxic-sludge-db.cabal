@@ -76,6 +76,7 @@ test-suite toxic-sludge-tests
     test-framework-quickcheck2,
     text,
     text-show,
+    transformers == 0.4.3.0,
     vector
   main-is: Tests/Main.hs
   buildable: True
