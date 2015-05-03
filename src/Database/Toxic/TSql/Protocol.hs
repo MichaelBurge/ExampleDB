@@ -461,6 +461,15 @@ instance Binary StartupMessage where
 data Sync = Sync deriving (Eq, Show)
 data Terminate = Terminate deriving (Eq, Show)
 
+instance Binary Terminate where
+  get = do
+    getWord8Assert (== ord 'X') "Terminate::get: Incorrect tag"
+    getAssert getWord32be (== 4) "Terminate::get: Incorrect size"
+    return Terminate
+  put _ = do
+    putWord8 $ fromIntegral $ ord 'X'
+    putWord32be 4
+
 sizeOfWord32 :: Word32
 sizeOfWord32 = 4
 
@@ -479,6 +488,7 @@ data AnyMessage =
   | MClose Close
   | MCommandComplete CommandComplete
   | MErrorResponse ErrorResponse
+  | MTerminate Terminate
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -494,6 +504,7 @@ instance Binary AnyMessage where
     <|> (MClose <$> get)
     <|> (MCommandComplete <$> get)
     <|> (MErrorResponse <$> get)
+    <|> (MTerminate <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
@@ -506,3 +517,4 @@ instance Binary AnyMessage where
     MClose x -> put x
     MCommandComplete x -> put x
     MErrorResponse x -> put x
+    MTerminate x -> put x

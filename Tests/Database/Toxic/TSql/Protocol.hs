@@ -152,6 +152,12 @@ test_error_response =
       expectedSerialized = "E\0\0\0`SERROR\0C42703\0Mcolumn \"derp\" does not exist\0P8\0Fparse_relation.c\0L2892\0RerrorMissingColumn\0\0"
   in assertSerialization message expectedSerialized
 
+test_terminate :: Assertion
+test_terminate =
+  let message = MTerminate Terminate
+      expectedSerialized = "\x58\x00\x00\x00\x04"
+  in assertSerialization message expectedSerialized
+
 protocolTests =
   testGroup "Protocol" [
     testCase "Startup message" test_startup_message,
@@ -164,5 +170,6 @@ protocolTests =
     testCase "Data Row" test_data_row,
     testCase "Close" test_close,
     testCase "Command Complete" test_command_complete,
-    testCase "Error Response" test_error_response
+    testCase "Error Response" test_error_response,
+    testCase "Terminate" test_terminate
     ]

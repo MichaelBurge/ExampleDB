@@ -27,7 +27,8 @@ import System.Directory
 data SessionState = SessionState {
   _sessionClientSocket :: Socket,
   _sessionStateMessage :: Decoder AnyMessage,
-  _sessionEnvironment  :: Environment
+  _sessionEnvironment  :: Environment,
+  _sessionExit         :: Bool
   }
 
 makeLenses ''SessionState
@@ -105,10 +106,14 @@ handleQuery query = case deserializeQuery query of
         forM_ messages serverSendMessage
         serverSendReadyForQuery
 
+handleTerminate :: Terminate -> StateT SessionState IO ()
+handleTerminate query = modify (& sessionExit .~ True)
+
 handleMessage :: AnyMessage -> StateT SessionState IO ()
 handleMessage message = case message of
   MStartupMessage x -> handleStartupMessage x
   MQuery x -> handleQuery x
+  MTerminate x -> handleTerminate x
 
 handleNewInput :: BS.ByteString -> StateT SessionState IO ()
 handleNewInput bs = do
@@ -136,7 +141,8 @@ serverHandler (clientSocket, clientAddress) = do
   let initialState = SessionState {
         _sessionClientSocket = clientSocket,
         _sessionStateMessage = runGetIncremental B.get,
-        _sessionEnvironment = Environment { }
+        _sessionEnvironment = Environment { },
+        _sessionExit = False
         }
   evalStateT (loop clientSocket clientAddress) initialState
   where
@@ -145,7 +151,10 @@ serverHandler (clientSocket, clientAddress) = do
       networkMessage <- lift $ recv clientSocket maximumReceiveLength
       lift $ putStrLn $ "Received bytes: " ++ show networkMessage
       handleNewInput networkMessage
-      loop clientSocket clientAddress
+      state <- get
+      if state ^. sessionExit
+        then return ()
+        else loop clientSocket clientAddress
 
 cleanup :: Socket -> IO ()
 cleanup socket = do
