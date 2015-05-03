@@ -211,6 +211,17 @@ test_order_by =
         }
   in assertQueryParses query expectedStatement
 
+test_multiple_fields :: Assertion
+test_multiple_fields =
+  let query = "select 5,5;"
+      expectedStatement = SQuery SingleQuery {
+        queryProject = V.fromList [ ELiteral $ LInt 5, ELiteral $ LInt 5 ],
+        queryGroupBy = Nothing,
+        querySource = Nothing,
+        queryOrderBy = Nothing
+        }
+  in assertQueryParses query expectedStatement
+
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -228,6 +239,7 @@ parserTests =
     testCase "Group by" test_group_by,
     testCase "Aggregate from" test_aggregate_from,
     testCase "Integer literal" test_integer_literal,
-    testCase "Order by" test_order_by
+    testCase "Order by" test_order_by,
+    testCase "Multiple fields" test_multiple_fields
     ]
   

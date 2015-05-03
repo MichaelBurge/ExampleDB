@@ -50,6 +50,8 @@ keyword text = P.reserved lexer text
 operator :: String -> CharParser ()
 operator text = P.reservedOp lexer text
 
+commaSep1 = P.commaSep1 lexer
+
 operator_table =
   let mkUnop name unop = prefix name (EUnop unop)
       mkBinop name binop = binary name (EBinop binop) AssocLeft
@@ -136,7 +138,7 @@ select_item = do
 select_clause :: CharParser (ArrayOf Expression)
 select_clause = do
   keyword "select"
-  V.fromList <$> sepBy1 select_item (keyword ",")
+  V.fromList <$> commaSep1 select_item
 
 group_by_clause :: CharParser (ArrayOf Expression)
 group_by_clause = do
@@ -212,7 +214,7 @@ composite_query =
 product_query :: CharParser Query
 product_query = 
   let one_or_more = V.fromList <$>
-                    sepBy1 subquery (keyword ",")
+                    commaSep1 subquery
   in do
     subqueries <- one_or_more
     return $ if V.length subqueries == 1
