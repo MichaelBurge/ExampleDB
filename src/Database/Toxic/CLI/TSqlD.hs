@@ -11,6 +11,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import qualified Data.Binary as B
 import Data.Binary.Get
+import Data.Binary.Put
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Network.Socket hiding (send, sendTo, recv, recvFrom)
@@ -18,6 +19,7 @@ import Network.Socket.ByteString
 import System.Directory
 
 data SessionState = SessionState {
+  _sessionClientSocket :: Socket,
   _sessionStateMessage :: Decoder AnyMessage
   }
 
@@ -38,8 +40,19 @@ serverConnect = do
   listen mySocket 1
   return mySocket
 
+serverSendMessage :: AnyMessage -> StateT SessionState IO ()
+serverSendMessage message = do
+  lift $ putStrLn $ "Sending message: " ++ show message
+  sessionState <- get
+  let clientSocket = sessionState ^. sessionClientSocket
+      networkMessage = BSL.toStrict $ B.encode message
+  lift $ putStrLn $ "Sending bytes: " ++ show networkMessage
+  lift $ send clientSocket networkMessage
+  return ()
+
 handleStartupMessage :: StartupMessage -> StateT SessionState IO ()
-handleStartupMessage message = return ()
+handleStartupMessage message = do
+  serverSendMessage $ MAuthenticationOk AuthenticationOk
 
 handleQuery :: Query -> StateT SessionState IO ()
 handleQuery query = return ()
@@ -73,6 +86,7 @@ handleNewInput bs = do
 serverHandler :: (Socket, SockAddr) -> IO ()
 serverHandler (clientSocket, clientAddress) = do
   let initialState = SessionState {
+        _sessionClientSocket = clientSocket,
         _sessionStateMessage = runGetIncremental B.get
         }
   evalStateT (loop clientSocket clientAddress) initialState

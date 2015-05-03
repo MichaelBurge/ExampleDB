@@ -61,8 +61,20 @@ test_query =
     assertEqual "put" expectedSerialized actualSerialized
     assertEqual "get" message unserialized
 
+test_authentication_ok :: Assertion
+test_authentication_ok =
+  let message = MAuthenticationOk AuthenticationOk
+      expectedSerialized :: BSL.ByteString
+      expectedSerialized = "\x52\x00\x00\x00\x08\x00\x00\x00\x00"
+      actualSerialized = runPut $ put message
+      unserialized = runGet get actualSerialized
+  in do
+    assertEqual "put" expectedSerialized actualSerialized
+    assertEqual "get" message unserialized
+
 protocolTests =
   testGroup "Protocol" [
     testCase "Startup message" test_startup_message,
-    testCase "Query" test_query
+    testCase "Query" test_query,
+    testCase "Authentication Ok" test_authentication_ok
     ]
