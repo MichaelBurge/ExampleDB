@@ -1,6 +1,9 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.Toxic.TSql.Protocol where
 
 import Control.Applicative
+import Control.Lens
 import Control.Monad
 import Data.Binary
 import Data.Binary.Get
@@ -24,14 +27,16 @@ getWord8Assert condition name =
   in fromIntegral <$> getAssert getWord8 newCondition name
 
 data RowDescriptionField = RowDescriptionField {
-  rowDescriptionFieldName :: BS.ByteString,
-  rowDescriptionFieldOid :: Word32,
-  rowDescriptionFieldAttributeNumber :: Word16,
-  rowDescriptionFieldDataType :: Word32,
-  rowDescriptionFieldSize :: Word16,
-  rowDescriptionFieldModifier :: Word32,
-  rowDescriptionFieldFormatCode :: Word16
+  _rowDescriptionFieldName :: BS.ByteString,
+  _rowDescriptionFieldOid :: Word32,
+  _rowDescriptionFieldAttributeNumber :: Word16,
+  _rowDescriptionFieldDataType :: Word32, -- typelem from pg_type
+  _rowDescriptionFieldSize :: Word16, --typlen from pg_type
+  _rowDescriptionFieldModifier :: Word32,
+  _rowDescriptionFieldFormatCode :: Word16
   } deriving (Eq, Show)
+
+makeLenses ''RowDescriptionField
 
 instance Binary RowDescriptionField where
   get = do
@@ -43,23 +48,23 @@ instance Binary RowDescriptionField where
     modifier <- getWord32be
     formatCode <- getWord16be
     return RowDescriptionField {
-      rowDescriptionFieldName = name,
-      rowDescriptionFieldOid = oid,
-      rowDescriptionFieldAttributeNumber = attributeNumber,
-      rowDescriptionFieldDataType = dataType,
-      rowDescriptionFieldSize = size,
-      rowDescriptionFieldModifier = modifier,
-      rowDescriptionFieldFormatCode = formatCode
+      _rowDescriptionFieldName = name,
+      _rowDescriptionFieldOid = oid,
+      _rowDescriptionFieldAttributeNumber = attributeNumber,
+      _rowDescriptionFieldDataType = dataType,
+      _rowDescriptionFieldSize = size,
+      _rowDescriptionFieldModifier = modifier,
+      _rowDescriptionFieldFormatCode = formatCode
       }
   put rowDescriptionField = do
-    putByteString $ rowDescriptionFieldName rowDescriptionField
+    putByteString $ rowDescriptionField ^. rowDescriptionFieldName
     putWord8 0
-    putWord32be $ rowDescriptionFieldOid rowDescriptionField
-    putWord16be $ rowDescriptionFieldAttributeNumber rowDescriptionField
-    putWord32be $ rowDescriptionFieldDataType rowDescriptionField
-    putWord16be $ rowDescriptionFieldSize rowDescriptionField
-    putWord32be $ rowDescriptionFieldModifier rowDescriptionField
-    putWord16be $ rowDescriptionFieldFormatCode rowDescriptionField
+    putWord32be $ rowDescriptionField ^. rowDescriptionFieldOid
+    putWord16be $ rowDescriptionField ^. rowDescriptionFieldAttributeNumber
+    putWord32be $ rowDescriptionField ^. rowDescriptionFieldDataType
+    putWord16be $ rowDescriptionField ^. rowDescriptionFieldSize
+    putWord32be $ rowDescriptionField ^. rowDescriptionFieldModifier
+    putWord16be $ rowDescriptionField ^. rowDescriptionFieldFormatCode
 
 -- | http://www.postgresql.org/docs/9.2/static/protocol-message-formats.html
 data AuthenticationOk = AuthenticationOk deriving (Eq, Show)

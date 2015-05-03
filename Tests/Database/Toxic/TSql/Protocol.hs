@@ -19,7 +19,7 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.HUnit
 import Test.QuickCheck
 
-assertSerialization :: AnyMessage -> BSL.ByteString -> Assertion
+assertSerialization :: (Binary a, Show a, Eq a) => a -> BSL.ByteString -> Assertion
 assertSerialization message expectedSerialized =
   let actualSerialized = encode message
       unserialized = decode actualSerialized
@@ -94,13 +94,13 @@ test_row_description :: Assertion
 test_row_description =
   let message = MRowDescription RowDescription {
         rowDescriptionFields = V.singleton RowDescriptionField {
-           rowDescriptionFieldName = "?column?",
-           rowDescriptionFieldOid = 0,
-           rowDescriptionFieldAttributeNumber = 0,
-           rowDescriptionFieldDataType = 23, -- _int4
-           rowDescriptionFieldSize = 4,
-           rowDescriptionFieldModifier = fromIntegral $ -1,
-           rowDescriptionFieldFormatCode = 0 -- text
+           _rowDescriptionFieldName = "?column?",
+           _rowDescriptionFieldOid = 0,
+           _rowDescriptionFieldAttributeNumber = 0,
+           _rowDescriptionFieldDataType = 23, -- _int4
+           _rowDescriptionFieldSize = 4,
+           _rowDescriptionFieldModifier = fromIntegral $ -1,
+           _rowDescriptionFieldFormatCode = 0 -- text
            }
         }
       -- From strace'ing psql

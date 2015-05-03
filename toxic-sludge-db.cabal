@@ -28,6 +28,7 @@ library
     Database.Toxic.TSql.Handler
     Database.Toxic.TSql.Parser
     Database.Toxic.TSql.Protocol
+    Database.Toxic.TSql.ProtocolHelper
     Database.Toxic.Types
   build-depends:
     base >=4.7 && <4.8,
@@ -59,6 +60,7 @@ test-suite toxic-sludge-tests
     bytestring,
     containers,
     HUnit,
+    lens,
     mtl,
     parsec,
     QuickCheck,
