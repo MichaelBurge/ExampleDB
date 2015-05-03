@@ -1,6 +1,8 @@
 module Database.Toxic.TSql.ProtocolHelper where
 
-import Database.Toxic.TSql.Protocol
+import Database.Toxic.Query.AST as Q
+import Database.Toxic.Query.Parser as Q
+import Database.Toxic.TSql.Protocol as P
 import Database.Toxic.Types
 
 import Control.Lens
@@ -63,3 +65,9 @@ serializeStream stream = [
     }
   ]
   
+deserializeQuery :: P.Query -> Either BS.ByteString Q.Query
+deserializeQuery query =
+  let queryText = T.pack $ BS.unpack $ queryQuery query
+  in case runQueryParser queryText of
+    Left parseError -> Left $ BS.pack $ show parseError
+    Right (SQuery parsedQuery) -> Right parsedQuery

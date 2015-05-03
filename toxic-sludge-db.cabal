@@ -18,8 +18,10 @@ cabal-version:       >=1.10
 library
   hs-source-dirs: src
   exposed-modules:
+    Database.Toxic.Aggregates
     Database.Toxic.CLI.TSql
     Database.Toxic.CLI.TSqlD
+    Database.Toxic.Operators
     Database.Toxic.Query.AST
     Database.Toxic.Query.Interpreter
     Database.Toxic.Query.Parser

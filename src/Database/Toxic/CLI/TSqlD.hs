@@ -2,11 +2,16 @@
 
 module Database.Toxic.CLI.TSqlD where
 
-import Database.Toxic.TSql.Protocol
+import Database.Toxic.Query.AST as Q
+import Database.Toxic.Query.Interpreter as Q
+import Database.Toxic.Query.Parser as Q
+import Database.Toxic.TSql.Protocol as P
+import Database.Toxic.TSql.ProtocolHelper as P
 
 import Control.Concurrent
 import Control.Exception
 import Control.Lens
+import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import qualified Data.Binary as B
@@ -21,7 +26,8 @@ import System.Directory
 
 data SessionState = SessionState {
   _sessionClientSocket :: Socket,
-  _sessionStateMessage :: Decoder AnyMessage
+  _sessionStateMessage :: Decoder AnyMessage,
+  _sessionEnvironment  :: Environment
   }
 
 makeLenses ''SessionState
@@ -75,8 +81,15 @@ handleStartupMessage message = do
     readyForQueryStatus = fromIntegral $ ord 'I'
     }
 
-handleQuery :: Query -> StateT SessionState IO ()
-handleQuery query = return ()
+handleQuery :: P.Query -> StateT SessionState IO ()
+handleQuery query = case deserializeQuery query of
+  Left parseError -> error $ "TODO: Implement error handling"
+  Right parsedQuery -> do
+    sessionState <- get
+    let environment = sessionState ^. sessionEnvironment
+    queryResults <- lift $ evaluateQuery environment parsedQuery
+    let messages = serializeStream queryResults
+    forM_ messages serverSendMessage
 
 handleMessage :: AnyMessage -> StateT SessionState IO ()
 handleMessage message = case message of
@@ -108,7 +121,8 @@ serverHandler :: (Socket, SockAddr) -> IO ()
 serverHandler (clientSocket, clientAddress) = do
   let initialState = SessionState {
         _sessionClientSocket = clientSocket,
-        _sessionStateMessage = runGetIncremental B.get
+        _sessionStateMessage = runGetIncremental B.get,
+        _sessionEnvironment = Environment { }
         }
   evalStateT (loop clientSocket clientAddress) initialState
   where
