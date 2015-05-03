@@ -67,8 +67,13 @@ data Query = SingleQuery {
   }
   deriving (Eq, Show)
 
+data TableSpec = TableSpec {
+  tableSpecColumns :: ArrayOf Column
+  } deriving (Eq, Show)
+
 data Statement =
-  SQuery Query
+    SQuery Query
+  | SCreateTable T.Text TableSpec
   deriving (Eq, Show)
 
 data QueryError =

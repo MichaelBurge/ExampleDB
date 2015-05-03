@@ -222,6 +222,13 @@ test_multiple_fields =
         }
   in assertQueryParses query expectedStatement
 
+test_create_table :: Assertion
+test_create_table =
+  let query = "create table derp (num_derps int);"
+      expectedStatement = SCreateTable "derp" $ TableSpec $ V.singleton
+        Column { columnName = "num_derps", columnType = TInt }
+  in assertQueryParses query expectedStatement
+
 parserTests :: Test.Framework.Test
 parserTests =
   testGroup "Parser" [
@@ -240,6 +247,7 @@ parserTests =
     testCase "Aggregate from" test_aggregate_from,
     testCase "Integer literal" test_integer_literal,
     testCase "Order by" test_order_by,
-    testCase "Multiple fields" test_multiple_fields
+    testCase "Multiple fields" test_multiple_fields,
+    testCase "Create Table" test_create_table
     ]
   

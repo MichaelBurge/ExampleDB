@@ -2,7 +2,7 @@
 
 module Database.Toxic.Query.Parser where
 
-import Database.Toxic.Types
+import Database.Toxic.Types as Toxic
 import Database.Toxic.Query.AST
 
 import Control.Applicative ((<$>), (*>), (<*), (<*>))
@@ -50,6 +50,7 @@ keyword text = P.reserved lexer text
 operator :: String -> CharParser ()
 operator text = P.reservedOp lexer text
 
+commaSep = P.commaSep lexer
 commaSep1 = P.commaSep1 lexer
 
 operator_table =
@@ -224,11 +225,40 @@ product_query =
 query :: CharParser Query
 query = composite_query <?> "Expected a query or union of queries"
 
-statement :: CharParser Statement
-statement = do
+select_statement :: CharParser Statement
+select_statement = do
   q <- query
   char ';'
   return $ SQuery q
+
+column_type :: CharParser Type
+column_type =
+  (keyword "int" *> return TInt) <|>
+  (keyword "bool" *> return TBool)
+
+table_spec_column :: CharParser Toxic.Column
+table_spec_column = do
+  name <- identifier
+  cType <- column_type
+  return Toxic.Column {
+    columnName = name,
+    columnType = cType
+    }
+
+table_spec :: CharParser TableSpec
+table_spec = parens $ TableSpec <$> V.fromList <$> commaSep table_spec_column
+
+create_table_statement :: CharParser Statement
+create_table_statement = do
+  keyword "create"
+  keyword "table"
+  name <- identifier
+  spec <- table_spec
+  char ';'
+  return $ SCreateTable name spec
+
+statement :: CharParser Statement
+statement = select_statement <|> create_table_statement
 
 runQueryParser :: T.Text -> Either ParseError Statement
 runQueryParser text = parse statement "runTokenParser" $ T.unpack text
