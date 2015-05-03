@@ -27,11 +27,39 @@ data RowDescriptionField = RowDescriptionField {
   rowDescriptionFieldName :: BS.ByteString,
   rowDescriptionFieldOid :: Word32,
   rowDescriptionFieldAttributeNumber :: Word16,
-  rowdescriptionFieldDataType :: Word32,
+  rowDescriptionFieldDataType :: Word32,
   rowDescriptionFieldSize :: Word16,
   rowDescriptionFieldModifier :: Word32,
   rowDescriptionFieldFormatCode :: Word16
   } deriving (Eq, Show)
+
+instance Binary RowDescriptionField where
+  get = do
+    name <- BSL.toStrict <$> getLazyByteStringNul
+    oid <- getWord32be
+    attributeNumber <- getWord16be
+    dataType <- getWord32be
+    size <- getWord16be
+    modifier <- getWord32be
+    formatCode <- getWord16be
+    return RowDescriptionField {
+      rowDescriptionFieldName = name,
+      rowDescriptionFieldOid = oid,
+      rowDescriptionFieldAttributeNumber = attributeNumber,
+      rowDescriptionFieldDataType = dataType,
+      rowDescriptionFieldSize = size,
+      rowDescriptionFieldModifier = modifier,
+      rowDescriptionFieldFormatCode = formatCode
+      }
+  put rowDescriptionField = do
+    putByteString $ rowDescriptionFieldName rowDescriptionField
+    putWord8 0
+    putWord32be $ rowDescriptionFieldOid rowDescriptionField
+    putWord16be $ rowDescriptionFieldAttributeNumber rowDescriptionField
+    putWord32be $ rowDescriptionFieldDataType rowDescriptionField
+    putWord16be $ rowDescriptionFieldSize rowDescriptionField
+    putWord32be $ rowDescriptionFieldModifier rowDescriptionField
+    putWord16be $ rowDescriptionFieldFormatCode rowDescriptionField
 
 -- | http://www.postgresql.org/docs/9.2/static/protocol-message-formats.html
 data AuthenticationOk = AuthenticationOk deriving (Eq, Show)
@@ -233,6 +261,26 @@ instance Binary ReadyForQuery where
 data RowDescription = RowDescription {
   rowDescriptionFields :: V.Vector RowDescriptionField
   } deriving (Eq, Show)
+
+instance Binary RowDescription where
+  get = do
+    getWord8Assert (== ord 'T') "RowDescription::get: Incorrect tag"
+    size <- getWord32be
+    numFields <- fromIntegral <$> getWord16be
+    fields <- V.fromList <$> replicateM numFields get
+    return RowDescription {
+      rowDescriptionFields = fields
+      }
+  put rowDescription = do
+    putWord8 $ fromIntegral $ ord 'T'
+    let fieldsBs = runPut $
+                   forM_ (V.toList $ rowDescriptionFields rowDescription) $
+                   put
+        size = sizeOfWord32 + sizeOfWord16 + (fromIntegral $ BSL.length fieldsBs)
+    putWord32be size
+    putWord16be $ fromIntegral $ V.length $ rowDescriptionFields rowDescription
+    putLazyByteString fieldsBs
+        
 data SSLRequest = SSLRequest deriving (Eq, Show)
 
 -- | Sent at the start of a psql session
@@ -299,6 +347,9 @@ data Terminate = Terminate deriving (Eq, Show)
 sizeOfWord32 :: Word32
 sizeOfWord32 = 4
 
+sizeOfWord16 :: Word32
+sizeOfWord16 = 2
+
 data AnyMessage =
     MStartupMessage StartupMessage
   | MQuery Query
@@ -306,6 +357,7 @@ data AnyMessage =
   | MParameterStatus ParameterStatus
   | MBackendKeyData BackendKeyData
   | MReadyForQuery ReadyForQuery
+  | MRowDescription RowDescription
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -316,6 +368,7 @@ instance Binary AnyMessage where
     <|> (MParameterStatus <$> get)
     <|> (MBackendKeyData <$> get)
     <|> (MReadyForQuery <$> get)
+    <|> (MRowDescription <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
@@ -323,5 +376,4 @@ instance Binary AnyMessage where
     MParameterStatus x -> put x
     MBackendKeyData x -> put x
     MReadyForQuery x -> put x
-
-
+    MRowDescription x -> put x

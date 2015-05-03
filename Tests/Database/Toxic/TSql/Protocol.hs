@@ -86,6 +86,24 @@ test_ready_for_query =
       expectedSerialized = "\x5a\x00\x00\x00\x05\x49"
   in assertSerialization message expectedSerialized
 
+test_row_description :: Assertion
+test_row_description =
+  let message = MRowDescription RowDescription {
+        rowDescriptionFields = V.singleton RowDescriptionField {
+           rowDescriptionFieldName = "?column?",
+           rowDescriptionFieldOid = 0,
+           rowDescriptionFieldAttributeNumber = 0,
+           rowDescriptionFieldDataType = 23, -- _int4
+           rowDescriptionFieldSize = 4,
+           rowDescriptionFieldModifier = fromIntegral $ -1,
+           rowDescriptionFieldFormatCode = 0 -- text
+           }
+        }
+      expectedSerialized = "\x54\x00\x00\x00\x21\x00\x01\x3f\x63\x6f\x6c\x75\x6d\x6e\x3f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x17\x00\x04\xff\xff\xff\xff\x00\x00"
+  in assertSerialization message expectedSerialized
+
+expectedSerialized = "\x44\x00\x00\x00\x0b\x00\x01\x00\x00\x00\x01\x35\x43\x00\x00\x00\x0d\x53\x45\x4c\x45\x43\x54\x20\x31\x00\x5a\x00\x00\x00\x05\x49"
+
 protocolTests =
   testGroup "Protocol" [
     testCase "Startup message" test_startup_message,
@@ -93,5 +111,6 @@ protocolTests =
     testCase "Authentication Ok" test_authentication_ok,
     testCase "Parameter Status" test_parameter_status,
     testCase "Backend Key Data" test_backend_key_data,
-    testCase "Ready For Query" test_ready_for_query
+    testCase "Ready For Query" test_ready_for_query,
+    testCase "Row Description" test_row_description
     ]
