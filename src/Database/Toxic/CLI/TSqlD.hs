@@ -142,6 +142,7 @@ serverAccept :: Socket -> IO (Handle, SockAddr)
 serverAccept socket = do
   (clientSocket, clientAddress) <- accept socket
   handle <- socketToHandle clientSocket ReadWriteMode
+  hSetBuffering handle $ BlockBuffering $ Just maximumReceiveLength
   return (handle, clientAddress)
 
 serverHandler :: (Handle, SockAddr) -> IO ()
@@ -156,19 +157,15 @@ serverHandler (clientHandle, clientAddress) = do
   where
     loop :: StateT SessionState IO ()
     loop = do
-      lift $ hFlushAll clientHandle
-      hasInput <- lift $ hWaitForInput clientHandle (-1)
-      if hasInput
-        then do
-          networkMessage <- lift $ BS.hGetSome clientHandle maximumReceiveLength
-          lift $ putStrLn $ "Received bytes: " ++ show networkMessage
-          handleNewInput networkMessage
-          lift $ hFlushAll clientHandle
-          state <- get
-          if state ^. sessionExit
-            then return ()
-            else loop
-        else loop 
+      lift $ hFlush clientHandle
+      networkMessage <- lift $ BS.hGetSome clientHandle maximumReceiveLength
+      lift $ putStrLn $ "Received bytes: " ++ show networkMessage
+      handleNewInput networkMessage
+      state <- get
+      if state ^. sessionExit
+        then return ()
+        else loop
+
 cleanup :: Socket -> IO ()
 cleanup handle = do
   close handle
