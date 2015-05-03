@@ -67,6 +67,11 @@ data BackendKeyData = BackendKeyData {
   backendKeyDataProcessId :: Word32,
   backendKeyDataSecretKey :: Word32
   } deriving (Eq, Show)
+
+instance Binary BackendKeyData where
+  get = undefined
+  put = undefined
+             
 data Bind = Bind {
   bindLength :: Word32,
   bindDestinationPortal :: String,
@@ -208,6 +213,18 @@ instance Binary Query where
 data ReadyForQuery = ReadyForQuery {
   readyForQueryStatus :: Word8
   } deriving (Eq, Show)
+
+instance Binary ReadyForQuery where
+  get = do
+    getWord8Assert (== ord 'Z') "tag"
+    getAssert getWord32be (==5) "ReadyForQuery: Wrong size"
+    status <- getWord8
+    return $ ReadyForQuery status
+  put readyForQuery = do
+    putWord8 $ fromIntegral $ ord 'Z'
+    putWord32be 5
+    putWord8 $ readyForQueryStatus readyForQuery
+             
 data RowDescription = RowDescription {
   rowDescriptionFields :: V.Vector RowDescriptionField
   } deriving (Eq, Show)
@@ -282,6 +299,8 @@ data AnyMessage =
   | MQuery Query
   | MAuthenticationOk AuthenticationOk
   | MParameterStatus ParameterStatus
+  | MBackendKeyData BackendKeyData
+  | MReadyForQuery ReadyForQuery
   deriving (Eq, Show)
 
 instance Binary AnyMessage where
@@ -290,10 +309,14 @@ instance Binary AnyMessage where
     <|> (MAuthenticationOk <$> get)
     <|> (MQuery <$> get)
     <|> (MParameterStatus <$> get)
+--    <|> (MBackendKeyData <$> get)
+    <|> (MReadyForQuery <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
     MStartupMessage x -> put x
     MParameterStatus x -> put x
+--    MBackendKeyData x -> put x
+    MReadyForQuery x -> put x
 
 

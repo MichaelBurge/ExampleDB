@@ -66,7 +66,10 @@ handleStartupMessage message = do
   sendParameter "session_authorization" "mburge"
   sendParameter "standard_conforming_strings" "on"
   sendParameter "TimeZone" "localtime"
-
+  serverSendMessage $ MBackendKeyData BackendKeyData {
+    backendKeyDataProcessId = 0,
+    backendKeyDataSecretKey = 0
+    }
 handleQuery :: Query -> StateT SessionState IO ()
 handleQuery query = return ()
 
