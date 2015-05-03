@@ -19,6 +19,7 @@ library
   hs-source-dirs: src
   exposed-modules:
     Database.Toxic.CLI.TSql
+    Database.Toxic.CLI.TSqlD
     Database.Toxic.Query.AST
     Database.Toxic.Query.Interpreter
     Database.Toxic.Query.Parser
@@ -74,6 +75,14 @@ test-suite toxic-sludge-tests
 
 executable tsql
   main-is: TSql.hs
+  build-depends:
+    base,
+    toxic-sludge-db
+  hs-source-dirs: bin-src
+  default-language: Haskell2010
+
+executable tsqld
+  main-is: TSqlD.hs
   build-depends:
     base,
     toxic-sludge-db

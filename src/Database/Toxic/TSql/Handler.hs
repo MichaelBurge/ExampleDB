@@ -47,8 +47,6 @@ handlerConnect = do
       address = SockAddrUnix "/var/run/postgresql/.s.PGSQL.5432"
   mySocket <- socket family socketType protocolNumber
   connect mySocket address
-  notifyChannel <- newChan
-  actionChannel <- newChan
   let initialState = HandlerState {
         _handlerSocket = mySocket
         }
