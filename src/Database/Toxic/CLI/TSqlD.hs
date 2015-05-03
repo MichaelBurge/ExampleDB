@@ -77,19 +77,33 @@ handleStartupMessage message = do
     backendKeyDataProcessId = 0,
     backendKeyDataSecretKey = 0
     }
-  serverSendMessage $ MReadyForQuery ReadyForQuery {
-    readyForQueryStatus = fromIntegral $ ord 'I'
-    }
+  serverSendReadyForQuery
+
+serverSendReadyForQuery :: StateT SessionState IO ()
+serverSendReadyForQuery = serverSendMessage $ MReadyForQuery ReadyForQuery {
+  readyForQueryStatus = fromIntegral $ ord 'I'
+  }
+
+serverSendError :: QueryError -> StateT SessionState IO ()
+serverSendError queryError = do
+  serverSendMessage $
+    MErrorResponse $
+    serializeError queryError
+  serverSendReadyForQuery
 
 handleQuery :: P.Query -> StateT SessionState IO ()
 handleQuery query = case deserializeQuery query of
-  Left parseError -> error $ "TODO: Implement error handling"
+  Left queryError -> serverSendError queryError
   Right parsedQuery -> do
     sessionState <- get
     let environment = sessionState ^. sessionEnvironment
-    queryResults <- lift $ evaluateQuery environment parsedQuery
-    let messages = serializeStream queryResults
-    forM_ messages serverSendMessage
+    queryResults <- lift $ executeQuery environment parsedQuery
+    case queryResults of
+      Left queryError -> serverSendError queryError
+      Right queryResults -> do
+        let messages = serializeStream queryResults
+        forM_ messages serverSendMessage
+        serverSendReadyForQuery
 
 handleMessage :: AnyMessage -> StateT SessionState IO ()
 handleMessage message = case message of

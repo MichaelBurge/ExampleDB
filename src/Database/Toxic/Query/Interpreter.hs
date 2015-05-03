@@ -9,6 +9,9 @@ import Database.Toxic.Streams
 import Database.Toxic.Types
 
 import Control.Applicative
+import Control.DeepSeq
+import Control.DeepSeq.Generics
+import Control.Exception
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -40,7 +43,10 @@ lookupVariable :: BindingContext -> T.Text -> Value
 lookupVariable context name =
   case M.lookup name $ bindingVariables context of
     Just value -> value
-    Nothing -> error $ "Unknown variable " ++ show name
+    Nothing -> throw $
+               ErrorUnknownVariable $
+               T.pack $
+               "Unknown variable " ++ show name
 
 lookupPlaceholder :: BindingContext -> Int -> Value
 lookupPlaceholder context index = (V.!) (bindingPlaceholders context) index
@@ -383,6 +389,17 @@ evaluateQuery environment query =
       evaluateUnionAllQuery environment queries
     ProductQuery queryFactors ->
       evaluateProductQuery environment queryFactors
+
+executeQuery :: Environment -> Query -> IO (Either QueryError Stream)
+executeQuery environment query =
+  let handleError :: QueryError -> IO (Either QueryError Stream)
+      handleError x = return $ Left x
+
+      computation :: IO (Either QueryError Stream)
+      computation = do
+        results <- evaluateQuery environment query
+        deepseq (show results) $ return (Right results)
+  in catch computation handleError
 
 execute :: Environment -> Statement -> IO Stream
 execute environment statement = case statement of

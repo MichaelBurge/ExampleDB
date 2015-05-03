@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Database.Toxic.TSql.ProtocolHelper where
 
 import Database.Toxic.Query.AST as Q
@@ -73,10 +75,25 @@ serializeStream stream = [
     readyForQueryStatus = fromIntegral $ ord 'I'
     }
   ]
-  
-deserializeQuery :: P.Query -> Either BS.ByteString Q.Query
+
+serializeError :: QueryError -> ErrorResponse
+serializeError queryError =
+  let errorMessage = show queryError
+      messageBs = BS.pack $ errorMessage
+  in ErrorResponse {
+    errorResponseTypesAndValues = V.fromList $
+                                  map (\(x,y) -> (fromIntegral $ ord x, y)) [
+       ('S', "ERROR"),
+       ('M', messageBs)
+       ]
+    }
+
+deserializeQuery :: P.Query -> Either QueryError Q.Query
 deserializeQuery query =
   let queryText = T.pack $ BS.unpack $ queryQuery query
   in case runQueryParser queryText of
-    Left parseError -> Left $ BS.pack $ show parseError
+    Left parseError -> Left $
+                       ErrorParseError $
+                       T.pack $
+                       show parseError
     Right (SQuery parsedQuery) -> Right parsedQuery

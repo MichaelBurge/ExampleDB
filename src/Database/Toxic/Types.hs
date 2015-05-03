@@ -1,6 +1,9 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes,DeriveGeneric #-}
 
 module Database.Toxic.Types where
+
+import GHC.Generics
+import Control.DeepSeq
 
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -15,24 +18,34 @@ data Value =
       VBool Bool
     | VInt Int
     | VNull
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Generic)
+
+instance NFData Value
 
 data Type =
       TBool
     | TInt
     | TUnknown
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Generic)
+
+instance NFData Type
 
 data Column = Column {
   columnName :: T.Text,
   columnType :: Type
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Generic)
 
-newtype Record = Record (ArrayOf Value) deriving (Eq, Ord, Show)
+instance NFData Column
+
+newtype Record = Record (ArrayOf Value) deriving (Eq, Ord, Show, Generic)
+instance NFData Record where
+  rnf x@(Record vs) = deepseq (V.toList vs) ()
+
 data Stream = Stream {
   streamHeader  :: ArrayOf Column,
   streamRecords :: SetOf Record
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
+instance NFData Stream
 
 data Table = Table {
   tableName   :: T.Text,

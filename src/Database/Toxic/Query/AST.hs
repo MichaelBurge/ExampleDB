@@ -1,6 +1,12 @@
+{-# LANGUAGE DeriveDataTypeable,DeriveGeneric #-}
 module Database.Toxic.Query.AST where
 
+import GHC.Generics
+import Control.DeepSeq
+
+import Control.Exception
 import qualified Data.Text as T
+import Data.Typeable
 import qualified Data.Vector as V
 import Database.Toxic.Types
 
@@ -65,6 +71,13 @@ data Statement =
   SQuery Query
   deriving (Eq, Show)
 
+data QueryError =
+  ErrorParseError T.Text
+  | ErrorUnknownVariable T.Text
+  deriving (Eq, Show, Typeable, Generic)
+
+instance Exception QueryError
+instance NFData QueryError
 
 singleton_statement :: Expression -> Statement
 singleton_statement expression = SQuery $ SingleQuery {
