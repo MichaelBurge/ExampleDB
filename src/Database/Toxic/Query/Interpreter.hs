@@ -398,7 +398,7 @@ executeQuery environment query =
       computation :: IO (Either QueryError Stream)
       computation = do
         results <- evaluateQuery environment query
-        deepseq (show results) $ return (Right results)
+        deepseq results $ return (Right results)
   in catch computation handleError
 
 execute :: Environment -> Statement -> IO Stream

@@ -3,7 +3,7 @@
 module Database.Toxic.Types where
 
 import GHC.Generics
-import Control.DeepSeq
+import Control.DeepSeq.Generics
 
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -20,7 +20,7 @@ data Value =
     | VNull
     deriving (Eq, Ord, Show, Generic)
 
-instance NFData Value
+instance NFData Value where rnf = genericRnf
 
 data Type =
       TBool
@@ -28,24 +28,23 @@ data Type =
     | TUnknown
     deriving (Eq, Ord, Show, Generic)
 
-instance NFData Type
+instance NFData Type where rnf = genericRnf
 
 data Column = Column {
   columnName :: T.Text,
   columnType :: Type
   } deriving (Eq, Ord, Show, Generic)
 
-instance NFData Column
+instance NFData Column where rnf = genericRnf
 
 newtype Record = Record (ArrayOf Value) deriving (Eq, Ord, Show, Generic)
-instance NFData Record where
-  rnf x@(Record vs) = deepseq (V.toList vs) ()
+instance NFData Record where rnf = genericRnf
 
 data Stream = Stream {
   streamHeader  :: ArrayOf Column,
   streamRecords :: SetOf Record
   } deriving (Eq, Show, Generic)
-instance NFData Stream
+instance NFData Stream where rnf = genericRnf
 
 data Table = Table {
   tableName   :: T.Text,
