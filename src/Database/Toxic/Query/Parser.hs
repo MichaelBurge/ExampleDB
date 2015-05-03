@@ -144,7 +144,7 @@ group_by_clause :: CharParser (ArrayOf Expression)
 group_by_clause = do
   keyword "group"
   keyword "by"
-  expressions <- V.fromList <$> sepBy1 expression (keyword ",")
+  expressions <- V.fromList <$> commaSep1 expression
   return expressions
 
 order_by_clause :: CharParser (ArrayOf (Expression, StreamOrder))
@@ -164,7 +164,7 @@ order_by_clause =
     try $ do
       keyword "order"
       keyword "by"
-    expressions <- V.fromList <$> sepBy1 order_by_expression (keyword ",")
+    expressions <- V.fromList <$> commaSep1 order_by_expression
     return expressions
 
 subquery :: CharParser Query
