@@ -70,10 +70,7 @@ serializeStream stream = [
   (map (MDataRow . serializeRow) (streamRecords stream)) ++ [
   MCommandComplete CommandComplete {
      commandCompleteTag = BS.pack $ "SELECT " ++ show (length $ streamRecords stream)
-     },
-  MReadyForQuery ReadyForQuery {
-    readyForQueryStatus = fromIntegral $ ord 'I'
-    }
+     }
   ]
 
 serializeError :: QueryError -> ErrorResponse

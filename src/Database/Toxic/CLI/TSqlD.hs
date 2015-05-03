@@ -22,10 +22,12 @@ import qualified Data.ByteString.Lazy as BSL
 import Data.Char
 import Network.Socket hiding (send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
+import GHC.IO.Handle (hFlushAll)
 import System.Directory
+import System.IO
 
 data SessionState = SessionState {
-  _sessionClientSocket :: Socket,
+  _sessionClientSocket :: Handle,
   _sessionStateMessage :: Decoder AnyMessage,
   _sessionEnvironment  :: Environment,
   _sessionExit         :: Bool
@@ -55,7 +57,7 @@ serverSendMessage message = do
   let clientSocket = sessionState ^. sessionClientSocket
       networkMessage = BSL.toStrict $ B.encode message
   lift $ putStrLn $ "Sending bytes: " ++ show networkMessage
-  lift $ send clientSocket networkMessage
+  lift $ BS.hPutStr clientSocket networkMessage
   return ()
 
 handleStartupMessage :: StartupMessage -> StateT SessionState IO ()
@@ -136,34 +138,45 @@ handleNewInput bs = do
         then return ()
         else handleNewInput unconsumed
 
-serverHandler :: (Socket, SockAddr) -> IO ()
-serverHandler (clientSocket, clientAddress) = do
+serverAccept :: Socket -> IO (Handle, SockAddr)
+serverAccept socket = do
+  (clientSocket, clientAddress) <- accept socket
+  handle <- socketToHandle clientSocket ReadWriteMode
+  return (handle, clientAddress)
+
+serverHandler :: (Handle, SockAddr) -> IO ()
+serverHandler (clientHandle, clientAddress) = do
   let initialState = SessionState {
-        _sessionClientSocket = clientSocket,
+        _sessionClientSocket = clientHandle,
         _sessionStateMessage = runGetIncremental B.get,
         _sessionEnvironment = Environment { },
         _sessionExit = False
         }
-  evalStateT (loop clientSocket clientAddress) initialState
+  evalStateT loop initialState
   where
-    loop :: Socket -> SockAddr -> StateT SessionState IO ()
-    loop clientSocket clientAddress = do
-      networkMessage <- lift $ recv clientSocket maximumReceiveLength
-      lift $ putStrLn $ "Received bytes: " ++ show networkMessage
-      handleNewInput networkMessage
-      state <- get
-      if state ^. sessionExit
-        then return ()
-        else loop clientSocket clientAddress
-
+    loop :: StateT SessionState IO ()
+    loop = do
+      lift $ hFlushAll clientHandle
+      hasInput <- lift $ hWaitForInput clientHandle (-1)
+      if hasInput
+        then do
+          networkMessage <- lift $ BS.hGetSome clientHandle maximumReceiveLength
+          lift $ putStrLn $ "Received bytes: " ++ show networkMessage
+          handleNewInput networkMessage
+          lift $ hFlushAll clientHandle
+          state <- get
+          if state ^. sessionExit
+            then return ()
+            else loop
+        else loop 
 cleanup :: Socket -> IO ()
-cleanup socket = do
-  close socket
+cleanup handle = do
+  close handle
   removeFile socketAddress
 
 tsqldMain :: IO ()
 tsqldMain = bracket serverConnect cleanup serverLoop
   where
     serverLoop socket = do
-      bracket (accept socket) (close . fst) serverHandler
+      bracket (serverAccept socket) (hClose . fst) serverHandler
       serverLoop socket
