@@ -38,13 +38,9 @@ data AuthenticationOk = AuthenticationOk deriving (Eq, Show)
 
 instance Binary AuthenticationOk where
   get = isolate 9 $ do
-    identifier <- getWord8
-    unless (identifier == (fromIntegral $ ord 'R')) $
-      fail "AuthenticationOk::get: Bad identifier"
-    length <- getWord32be
-    unless (length == 8) $ fail "AuthenticationOk::get: Bad length"
-    indicator <- getWord32be
-    unless (indicator == 0) $ fail "AuthenticationOk::get: Bad specifier"
+    getWord8Assert (==ord 'R') "AuthenticationOk::get: Bad tag"
+    length <- getAssert getWord32be (==8) "AuthenticationOk::get: Bad length"
+    indicator <- getAssert getWord32be (==0) "AuthenticationOk::get: Bad specifier"
     return AuthenticationOk
   put x = do
     putWord8 $ fromIntegral $ ord 'R'
@@ -69,9 +65,18 @@ data BackendKeyData = BackendKeyData {
   } deriving (Eq, Show)
 
 instance Binary BackendKeyData where
-  get = undefined
-  put = undefined
-             
+  get = do
+    getWord8Assert (==ord 'K') "BackendKeyData::get: Bad tag"
+    getAssert getWord32be (==12) "BackendKeyData::get: Incorrect size"
+    processId <- getWord32be
+    secretKey <- getWord32be
+    return $ BackendKeyData processId secretKey
+  put backendKeyData = do
+    putWord8 $ fromIntegral $ ord 'K'
+    putWord32be 12
+    putWord32be $ backendKeyDataProcessId backendKeyData
+    putWord32be $ backendKeyDataSecretKey backendKeyData
+
 data Bind = Bind {
   bindLength :: Word32,
   bindDestinationPortal :: String,
@@ -309,14 +314,14 @@ instance Binary AnyMessage where
     <|> (MAuthenticationOk <$> get)
     <|> (MQuery <$> get)
     <|> (MParameterStatus <$> get)
---    <|> (MBackendKeyData <$> get)
+    <|> (MBackendKeyData <$> get)
     <|> (MReadyForQuery <$> get)
   put x = case x of
     MAuthenticationOk x -> put x
     MQuery x -> put x
     MStartupMessage x -> put x
     MParameterStatus x -> put x
---    MBackendKeyData x -> put x
+    MBackendKeyData x -> put x
     MReadyForQuery x -> put x
 
 
