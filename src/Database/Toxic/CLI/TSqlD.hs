@@ -8,6 +8,7 @@ import Database.Toxic.Query.Parser as Q
 import Database.Toxic.TSql.Protocol as P
 import Database.Toxic.TSql.ProtocolHelper as P
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Exception
 import Control.Lens
@@ -24,6 +25,7 @@ import Network.Socket hiding (send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
 import GHC.IO.Handle (hFlushAll)
 import System.Directory
+import System.Environment
 import System.IO
 
 data SessionState = SessionState {
@@ -37,17 +39,21 @@ makeLenses ''SessionState
 
 maximumReceiveLength = 10000
 
-socketAddress = "/home/mburge/tmp/.s.PGSQL.5432"
+socketAddress :: IO String
+socketAddress = do
+  directory <- getEnv "SOCKET_DIRECTORY"
+  return $ directory ++ "/.s.PGSQL.5432"
 
 serverConnect :: IO Socket
 serverConnect = do
   let family = AF_UNIX
       socketType = Stream
       protocolNumber = defaultProtocol
-      address = SockAddrUnix socketAddress
+  address <- socketAddress
   mySocket <- socket family socketType protocolNumber
-  bindSocket mySocket address
+  bindSocket mySocket $ SockAddrUnix address
   listen mySocket 1
+  putStrLn $ "Listening on " ++ address
   return mySocket
 
 serverSendMessage :: AnyMessage -> StateT SessionState IO ()
@@ -73,7 +79,7 @@ handleStartupMessage message = do
   sendParameter "is_superuser" "on"
   sendParameter "server_encoding" "UTF8"
   sendParameter "server_version" "9.4.1"
-  sendParameter "session_authorization" "mburge"
+  sendParameter "session_authorization" "example_user"
   sendParameter "standard_conforming_strings" "on"
   sendParameter "TimeZone" "localtime"
   serverSendMessage $ MBackendKeyData BackendKeyData {
@@ -169,7 +175,8 @@ serverHandler (clientHandle, clientAddress) = do
 cleanup :: Socket -> IO ()
 cleanup handle = do
   close handle
-  removeFile socketAddress
+  address <- socketAddress
+  removeFile address
 
 tsqldMain :: IO ()
 tsqldMain = bracket serverConnect cleanup serverLoop

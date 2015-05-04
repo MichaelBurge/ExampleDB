@@ -63,8 +63,8 @@ defaultStartupMessage :: StartupMessage
 defaultStartupMessage = StartupMessage {
   startupMessageProtocolVersion = defaultProtocolVersion,
   startupMessageParameters = V.fromList [
-     ("user", "mburge"),
-     ("database", "mburge"),
+     ("user", "example_user"),
+     ("database", "example"),
      ("application_name", "psql"),
      ("client_encoding", "UTF8")
      ]
