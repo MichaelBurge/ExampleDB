@@ -75,7 +75,10 @@ serializeStream stream = [
 
 serializeError :: QueryError -> ErrorResponse
 serializeError queryError =
-  let errorMessage = show queryError
+  let errorMessage =
+        case queryError of
+          ErrorParseError x -> T.unpack x
+          _ -> show queryError
       messageBs = BS.pack $ errorMessage
   in ErrorResponse {
     errorResponseTypesAndValues = V.fromList $
