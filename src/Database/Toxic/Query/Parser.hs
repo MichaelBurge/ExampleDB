@@ -189,17 +189,27 @@ from_clause =
   in (Just <$> real_from_clause) <|>
      return Nothing
 
+where_clause :: CharParser (Maybe Expression)
+where_clause =
+  let real_where_clause = do
+        try $ keyword "where"
+        expression
+  in (Just <$> real_where_clause) <|>
+     return Nothing
+
 single_query :: CharParser Query
 single_query = do
   expressions <- select_clause
   source <- from_clause
+  whereClause <- where_clause
   groupBy <- optionMaybe group_by_clause
   orderBy <- optionMaybe order_by_clause
   return $ SingleQuery {
     queryGroupBy = groupBy,
     queryProject = expressions,
     querySource = source,
-    queryOrderBy = orderBy
+    queryOrderBy = orderBy,
+    queryWhere = whereClause
     }
     
 composite_query :: CharParser Query

@@ -60,7 +60,8 @@ data Query = SingleQuery {
   queryGroupBy :: Maybe (ArrayOf Expression),
   queryOrderBy :: Maybe (ArrayOf (Expression, StreamOrder)),
   queryProject :: ArrayOf Expression,
-  querySource  :: Maybe Query
+  querySource  :: Maybe Query,
+  queryWhere   :: Maybe Expression
   } | SumQuery {
    queryCombineOperation   :: QuerySumOperation,
    queryConstituentQueries :: ArrayOf Query
@@ -102,7 +103,8 @@ singleton_query expression = SingleQuery {
   queryGroupBy = Nothing,
   queryProject = V.singleton expression,
   querySource = Nothing,
-  queryOrderBy = Nothing
+  queryOrderBy = Nothing,
+  queryWhere = Nothing
   }
 
 singleton_statement :: Expression -> Statement

@@ -71,16 +71,8 @@ test_union =
         SumQuery {
            queryCombineOperation = QuerySumUnionAll,
            queryConstituentQueries = V.fromList [
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
-                           queryGroupBy = Nothing,
-                           querySource = Nothing,
-                           queryOrderBy = Nothing
-                         },
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False,
-                           queryGroupBy = Nothing,
-                           querySource = Nothing,
-                           queryOrderBy = Nothing
-                         }
+             singleton_query $ ELiteral $ LBool True,
+             singleton_query $ ELiteral $ LBool False
            ]
          }
   in assertQueryParses query expectedStatement
@@ -93,12 +85,8 @@ test_subquery =
           queryGroupBy = Nothing,
           queryOrderBy = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
-          querySource = Just $ SingleQuery {
-            queryProject = V.singleton $ ELiteral $ LBool False,
-            queryGroupBy = Nothing,
-            querySource = Nothing,
-            queryOrderBy = Nothing
-            }
+          querySource = Just $ singleton_query $ ELiteral $ LBool False,
+          queryWhere = Nothing
           }
   in assertQueryParses query expectedStatement
 
@@ -109,21 +97,12 @@ test_cross_join =
         SingleQuery {
           queryGroupBy = Nothing,
           queryOrderBy = Nothing,
+          queryWhere = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ ProductQuery {
             queryFactors = V.fromList [
-               SingleQuery {
-                  queryProject = V.singleton $ ELiteral $ LBool True,
-                  queryGroupBy = Nothing,
-                  querySource = Nothing,
-                  queryOrderBy = Nothing
-                  },
-               SingleQuery {
-                 queryProject = V.singleton $ ELiteral $ LBool False,
-                 queryGroupBy = Nothing,
-                 querySource = Nothing,
-                 queryOrderBy = Nothing
-                 }
+               singleton_query $ ELiteral $ LBool True,
+               singleton_query $ ELiteral $ LBool False
                ]
             }
           }
@@ -136,13 +115,9 @@ test_variable =
         SingleQuery {
           queryGroupBy = Nothing,
           queryOrderBy = Nothing,
+          queryWhere = Nothing,
           queryProject = V.singleton $ EVariable "x",
-          querySource = Just $ SingleQuery {
-            queryProject = V.singleton $ ERename (ELiteral $ LBool True) "x",
-            queryGroupBy = Nothing,
-            querySource = Nothing,
-            queryOrderBy = Nothing
-            }
+          querySource = Just $ singleton_query $ ERename (ELiteral $ LBool True) "x"
           }
   in assertQueryParses query expectedStatement
 
@@ -165,7 +140,8 @@ test_group_by =
         queryProject = V.singleton $ ELiteral $ LBool True,
         queryGroupBy = Just $ V.singleton $ ELiteral $ LBool True,
         querySource = Nothing,
-        queryOrderBy = Nothing
+        queryOrderBy = Nothing,
+        queryWhere = Nothing
         }
   in assertQueryParses query expectedStatement
 
@@ -176,19 +152,12 @@ test_aggregate_from =
         queryProject = V.singleton $ EAggregate QAggBoolOr $ EVariable "x",
         queryGroupBy = Nothing,
         queryOrderBy = Nothing,
+        queryWhere = Nothing,
         querySource = Just $ SumQuery {
           queryCombineOperation = QuerySumUnionAll,
           queryConstituentQueries = V.fromList [
-            SingleQuery { queryProject = V.singleton $ ERename (ELiteral $ LBool False) "x",
-                          queryGroupBy = Nothing,
-                          querySource = Nothing,
-                          queryOrderBy = Nothing
-                        },
-            SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
-                          queryGroupBy = Nothing,
-                          querySource = Nothing,
-                          queryOrderBy = Nothing
-                        }
+            singleton_query $ ERename (ELiteral $ LBool False) "x",
+            singleton_query $ ELiteral $ LBool True
             ]
           }
         }
@@ -207,6 +176,7 @@ test_order_by =
         queryProject = V.singleton $ ELiteral $ LBool True,
         queryGroupBy = Nothing,
         querySource = Nothing,
+        queryWhere = Nothing,
         queryOrderBy = Just $ V.singleton (ELiteral $ LBool True, Ascending)
         }
   in assertQueryParses query expectedStatement
@@ -218,7 +188,8 @@ test_multiple_fields =
         queryProject = V.fromList [ ELiteral $ LInt 5, ELiteral $ LInt 5 ],
         queryGroupBy = Nothing,
         querySource = Nothing,
-        queryOrderBy = Nothing
+        queryOrderBy = Nothing,
+        queryWhere = Nothing
         }
   in assertQueryParses query expectedStatement
 
@@ -227,6 +198,24 @@ test_create_table =
   let query = "create table derp (num_derps int);"
       expectedStatement = SCreateTable "derp" $ TableSpec $ V.singleton
         Column { columnName = "num_derps", columnType = TInt }
+  in assertQueryParses query expectedStatement
+
+test_where :: Assertion
+test_where =
+  let query = "select x from (select 5 as x union all select 10) where x < 7;"
+      expectedStatement = SQuery SingleQuery {
+        queryProject = V.singleton $ EVariable "x",
+        queryGroupBy = Nothing,
+        queryOrderBy = Nothing,
+        queryWhere = Just $ EBinop BinopLess (EVariable "x") (ELiteral $ LInt 7),
+        querySource = Just SumQuery {
+          queryCombineOperation = QuerySumUnionAll,
+          queryConstituentQueries = V.fromList [
+            singleton_query $ ERename (ELiteral $ LInt 5) "x",
+            singleton_query $ ELiteral $ LInt 10
+            ]
+          }
+        }
   in assertQueryParses query expectedStatement
 
 parserTests :: Test.Framework.Test
@@ -248,6 +237,7 @@ parserTests =
     testCase "Integer literal" test_integer_literal,
     testCase "Order by" test_order_by,
     testCase "Multiple fields" test_multiple_fields,
-    testCase "Create Table" test_create_table
+    testCase "Create Table" test_create_table,
+    testCase "Where" test_where
     ]
   

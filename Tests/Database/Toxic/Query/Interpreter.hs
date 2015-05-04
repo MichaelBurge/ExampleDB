@@ -106,16 +106,9 @@ test_union =
         SumQuery {
            queryCombineOperation = QuerySumUnionAll,
            queryConstituentQueries = V.fromList [
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool True,
-                           querySource = Nothing,
-                           queryGroupBy = Nothing,
-                           queryOrderBy = Nothing
-                           },
-             SingleQuery { queryProject = V.singleton $ ELiteral $ LBool False,
-                           querySource = Nothing,
-                           queryGroupBy = Nothing,
-                           queryOrderBy = Nothing }
-           ]
+             singleton_query $ ELiteral $ LBool True,
+             singleton_query $ ELiteral $ LBool False
+             ]
          }
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = single_column_stream expectedColumn [
@@ -131,14 +124,10 @@ test_subquery =
   let query =
         SingleQuery {
           queryProject = V.singleton $ ELiteral $ LBool True,
-          querySource = Just $ SingleQuery {
-            queryProject = V.singleton $ ELiteral $ LBool False,
-            querySource = Nothing,
-            queryGroupBy = Nothing,
-            queryOrderBy = Nothing
-            },
+          querySource = Just $ singleton_query $ ELiteral $ LBool False,
           queryGroupBy = Nothing,
-          queryOrderBy = Nothing
+          queryOrderBy = Nothing,
+          queryWhere = Nothing
           }
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = singleton_stream expectedColumn $ VBool True
@@ -152,21 +141,12 @@ test_cross_join =
         SingleQuery {
           queryGroupBy = Nothing,
           queryOrderBy = Nothing,
+          queryWhere = Nothing,
           queryProject = V.singleton $ ELiteral $ LBool True,
           querySource = Just $ ProductQuery {
             queryFactors = V.fromList [
-               SingleQuery {
-                  queryProject = V.singleton $ ELiteral $ LBool True,
-                  querySource = Nothing,
-                  queryGroupBy = Nothing,
-                  queryOrderBy = Nothing
-                  },
-               SingleQuery {
-                 queryProject = V.singleton $ ELiteral $ LBool False,
-                 querySource = Nothing,
-                 queryGroupBy = Nothing,
-                 queryOrderBy = Nothing
-                 }
+               singleton_query $ ELiteral $ LBool True,
+               singleton_query $ ELiteral $ LBool False
                ]
             }
           }
@@ -178,12 +158,7 @@ test_cross_join =
 
 test_subquery_multiple_rows :: Assertion
 test_subquery_multiple_rows =
-  let falseQuery = SingleQuery {
-        queryProject = V.singleton $ ELiteral $ LBool False,
-        querySource = Nothing,
-        queryGroupBy = Nothing,
-        queryOrderBy = Nothing
-        }
+  let falseQuery = singleton_query $ ELiteral $ LBool False
       unionQuery = SumQuery {
         queryCombineOperation = QuerySumUnionAll,
         queryConstituentQueries = V.fromList [ falseQuery, falseQuery ]
@@ -192,7 +167,8 @@ test_subquery_multiple_rows =
         queryProject = V.singleton $ ELiteral $ LBool True,
         querySource = Just unionQuery,
         queryGroupBy = Nothing,
-        queryOrderBy = Nothing
+        queryOrderBy = Nothing,
+        queryWhere = Nothing
         }
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = single_column_stream expectedColumn $ replicate 2 $ VBool True
@@ -202,12 +178,7 @@ test_subquery_multiple_rows =
 
 test_cross_join_multiple_rows :: Assertion
 test_cross_join_multiple_rows =
-  let falseQuery = SingleQuery {
-        queryProject = V.singleton $ ELiteral $ LBool False,
-        querySource = Nothing,
-        queryGroupBy = Nothing,
-        queryOrderBy = Nothing
-        }
+  let falseQuery = singleton_query $ ELiteral $ LBool False
       unionQuery = SumQuery {
         queryCombineOperation = QuerySumUnionAll,
         queryConstituentQueries = V.fromList [ falseQuery, falseQuery ]
@@ -219,7 +190,8 @@ test_cross_join_multiple_rows =
         queryProject = V.singleton $ ELiteral $ LBool True,
         querySource = Just productQuery,
         queryGroupBy = Nothing,
-        queryOrderBy = Nothing
+        queryOrderBy = Nothing,
+        queryWhere = Nothing
         }
       expectedColumn = Column { columnName = "literal", columnType = TBool }
       expectedStream = single_column_stream expectedColumn $ replicate 8 $ VBool True
@@ -231,14 +203,10 @@ test_variable :: Assertion
 test_variable =
   let query = SingleQuery {
         queryProject = V.singleton $ EVariable "x",
-        querySource = Just $ SingleQuery {
-          queryProject = V.singleton $ ERename (ELiteral $ LBool True) "x",
-          querySource = Nothing,
-          queryGroupBy = Nothing,
-          queryOrderBy = Nothing
-          },
+        querySource = Just $ singleton_query $ ERename (ELiteral $ LBool True) "x",
         queryGroupBy = Nothing,
-        queryOrderBy = Nothing
+        queryOrderBy = Nothing,
+        queryWhere = Nothing
         }
       expectedColumn = Column { columnName = "x", columnType = TUnknown }
       expectedStream = singleton_stream expectedColumn $ VBool True

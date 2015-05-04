@@ -262,14 +262,26 @@ resolveQueryBindings environment query =
     SumQuery { } -> mapResults query
     ProductQuery { } -> mapResults query
 
+shouldIncludeBindingContext :: Maybe Expression -> BindingContext -> Bool
+shouldIncludeBindingContext Nothing context = True
+shouldIncludeBindingContext (Just filterExpression) context =
+  let value = evaluateOneExpression context filterExpression
+  in case value of
+    VBool False -> False
+    VNull -> False
+    _ -> True
+
 -- | Evaluates a query that has no aggregates
 evaluateRowWiseQuery :: Environment -> Query -> IO Stream
-evaluateRowWiseQuery environment query@(SingleQuery _ _ _ _) =
+evaluateRowWiseQuery environment query =
   let streamHeader     = queryColumns query
       queryExpressions = queryProject query :: ArrayOf Expression
+      whereClause      = queryWhere query
   in do
     bindingContexts <- resolveQueryBindings environment query
-    let streamRecords = map (evaluateExpressions queryExpressions) bindingContexts
+    let streamRecords = map (evaluateExpressions queryExpressions) $
+                        filter (shouldIncludeBindingContext whereClause) $
+                        bindingContexts
     return $ Stream {
       streamHeader = streamHeader,
       streamRecords = streamRecords
@@ -320,12 +332,14 @@ mapAst expression f =
 
 -- | Evaluates a query with aggregates over a primary key
 evaluateAggregateQuery :: Environment -> Query -> IO Stream
-evaluateAggregateQuery environment query@(SingleQuery _ _ _ _) =
+evaluateAggregateQuery environment query =
   let streamHeader = queryColumns query
       selectExpressions = queryProject query
       groupByExpressions = getQueryPrimaryKey query
+      whereClause = queryWhere query
   in do
-    bindingContexts <- resolveQueryBindings environment query
+    bindingContexts <- filter (shouldIncludeBindingContext whereClause) <$>
+                       resolveQueryBindings environment query
     let (continuations, aggregates, inputTransformers) = getRowAggregates selectExpressions
     let aggregateFunctions = V.map aggregateFunctionFromBuiltin aggregates
     let bindAggregateInputs context =
@@ -346,7 +360,7 @@ evaluateAggregateQuery environment query@(SingleQuery _ _ _ _) =
       }
 
 evaluateSingleQuery :: Environment -> Query -> IO Stream
-evaluateSingleQuery environment query@(SingleQuery _ _ _ _) = do
+evaluateSingleQuery environment query = do
   unorderedStream <-
     if V.any hasAggregates $ queryProject query
     then evaluateAggregateQuery environment query
@@ -354,9 +368,6 @@ evaluateSingleQuery environment query@(SingleQuery _ _ _ _) = do
   return $ case getColumnOrdering query of
     Just orderings -> orderByColumns unorderedStream orderings
     Nothing -> unorderedStream
-  
-    
-evaluateSingleQuery _ query = error $ "evaluateSingleQuery called on something other than a single query" ++ show query
 
 evaluateUnionAllQuery :: Environment -> ArrayOf Query -> IO Stream
 evaluateUnionAllQuery environment queries =
@@ -391,7 +402,7 @@ evaluateProductQuery environment queries =
 evaluateQuery :: Environment -> Query -> IO Stream
 evaluateQuery environment query =
   case query of
-    SingleQuery _ _ _ _ -> evaluateSingleQuery environment query
+    SingleQuery _ _ _ _ _ -> evaluateSingleQuery environment query
     SumQuery QuerySumUnionAll queries ->
       evaluateUnionAllQuery environment queries
     ProductQuery queryFactors ->

@@ -210,6 +210,23 @@ test_numeric_binops =
         }
   in assertQueryResults nullEnvironment query expectedStream
 
+test_where :: Assertion
+test_where =
+  let query = "select x from (select 5 as x union all select 10) where x < 7;"
+      expectedColumn = Column { columnName = "x", columnType = TUnknown }
+      expectedStream = Stream {
+        streamHeader = V.singleton expectedColumn,
+        streamRecords = [ Record $ V.singleton $ VInt 5 ]
+        }
+  in assertQueryResults nullEnvironment query expectedStream
+
+test_where_aggregates :: Assertion
+test_where_aggregates =
+  let query = "select sum(x) from (select 1 as x union all select 2 union all select 10) where x < 7;"
+      expectedColumn = Column { columnName = "sum", columnType = TInt }
+      expectedStream = singleton_stream expectedColumn $ VInt 3
+  in assertQueryResults nullEnvironment query expectedStream
+
 exampleQueriesTests :: Test.Framework.Test
 exampleQueriesTests =
   testGroup "Example queries" [
@@ -233,5 +250,7 @@ exampleQueriesTests =
     testCase "Not" test_not,
     testCase "Plus" test_plus,
     testCase "Numeric Binops" test_numeric_binops,
-    testCase "Boolean Binops" test_boolean_binops
+    testCase "Boolean Binops" test_boolean_binops,
+    testCase "Where" test_where,
+    testCase "Where(aggregate)" test_where_aggregates
     ]
